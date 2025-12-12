@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>价格查询工具</title>
 
-    <!-- 引入 ZXing 条码扫描库 -->
+    <!-- ZXing 条码扫描库 -->
     <script src="https://unpkg.com/@zxing/library@latest"></script>
 
     <style>
@@ -14,14 +14,17 @@
             margin: 20px;
             padding-bottom: 50px;
         }
+
         h1 {
             text-align: center;
         }
+
         #video {
             width: 100%;
             max-height: 300px;
             background: #000;
         }
+
         #result-box {
             margin-top: 20px;
             padding: 15px;
@@ -29,12 +32,14 @@
             border-radius: 8px;
             font-size: 18px;
         }
+
         button {
             width: 100%;
             margin-top: 10px;
             padding: 12px;
             font-size: 18px;
         }
+
         input {
             width: 100%;
             padding: 10px;
@@ -47,73 +52,86 @@
 <body>
     <h1>价格查询工具</h1>
 
-    <!-- 摄像头画面 -->
-    <video id="video" autoplay></video>
+    <!-- 摄像头预览 -->
+    <video id="video" autoplay playsinline></video>
 
-    <!-- 按钮和输入框 -->
+    <!-- 按钮 -->
     <button id="scan-btn">开始扫码</button>
-    <input id="manual-input" type="text" placeholder="手动输入条码">
+
+    <!-- 手动输入 -->
+    <input id="manual-input" type="text" placeholder="手动输入条码" />
     <button id="check-btn">查询价格</button>
 
-    <!-- 显示结果 -->
+    <!-- 结果显示 -->
     <div id="result-box">等待扫码或输入条码...</div>
 
-<script>
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const video = document.getElementById("video");
-    const resultBox = document.getElementById("result-box");
-    let scanning = false;
+    <script>
+        const video = document.getElementById("video");
+        const scanBtn = document.getElementById("scan-btn");
+        const manualInput = document.getElementById("manual-input");
+        const checkBtn = document.getElementById("check-btn");
+        const resultBox = document.getElementById("result-box");
 
-    // 点击开始扫码
-    document.getElementById("scan-btn").onclick = async () => {
-        if (scanning) return;
+        let codeReader = null;
+        let currentStream = null;
 
-        try {
-            scanning = true;
+        // 启动摄像头
+        async function startCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(t => t.stop());
+            }
 
-            const devices = await codeReader.listVideoInputDevices();
-            if (devices.length === 0) {
-                resultBox.innerText = "未找到摄像头设备";
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+
+                video.srcObject = currentStream;
+            } catch (err) {
+                alert("无法访问摄像头：" + err);
+            }
+        }
+
+        // 扫描条码
+        async function startScan() {
+            await startCamera();
+
+            if (!codeReader) {
+                codeReader = new ZXing.BrowserMultiFormatReader(null, {
+                    tryHarder: true,
+                    possibleFormats: [
+                        ZXing.BarcodeFormat.UPC_A,
+                        ZXing.BarcodeFormat.EAN_13,
+                        ZXing.BarcodeFormat.CODE_128,
+                        ZXing.BarcodeFormat.CODE_39
+                    ]
+                });
+            }
+
+            codeReader.decodeFromVideoDevice(null, "video", (result, err) => {
+                if (result) {
+                    const code = result.text;
+                    resultBox.textContent = "扫描结果：" + code;
+                }
+            });
+        }
+
+        scanBtn.onclick = startScan;
+
+        // 手动输入查询
+        checkBtn.onclick = () => {
+            const code = manualInput.value.trim();
+            if (!code) {
+                alert("请输入条码！");
                 return;
             }
 
-            // 优先后置摄像头
-            let deviceId = devices[devices.length - 1].deviceId;
-
-            codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-                if (result) {
-                    const barcode = result.text;
-                    resultBox.innerText = "识别到条码：" + barcode;
-                    codeReader.reset(); // 停止扫码
-                    scanning = false;
-
-                    // 调用价格查询（这里先模拟）
-                    checkPrice(barcode);
-                }
-            });
-
-            resultBox.innerText = "正在扫描条码...";
-        } catch (error) {
-            resultBox.innerText = "扫码失败：" + error;
-            scanning = false;
-        }
-    };
-
-    // 手动查询按钮
-    document.getElementById("check-btn").onclick = () => {
-        const code = document.getElementById("manual-input").value.trim();
-        if (!code) {
-            resultBox.innerText = "请输入条码";
-            return;
-        }
-        checkPrice(code);
-    };
-
-    // 模拟查询功能，可根据你需要改成 API
-    function checkPrice(barcode) {
-        resultBox.innerText = "条码：" + barcode + "\n价格：¥" + (Math.random() * 100).toFixed(2);
-    }
-</script>
-
+            resultBox.textContent = "输入条码：" + code;
+        };
+    </script>
 </body>
 </html>
