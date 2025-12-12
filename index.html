@@ -1,433 +1,117 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>价格查询（带本地库）</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>价格查询</title>
 
-  <!-- ZXing 库（扫码） -->
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+<!-- 引入 ZXing 解码库 -->
+<script src="https://unpkg.com/@zxing/library@0.20.0"></script>
 
-  <style>
-    body { font-family: Arial, sans-serif; margin: 12px; }
-    h1 { text-align:center; margin-bottom:8px; }
-    #video { width:100%; max-height:360px; background:#000; border-radius:8px; }
-    .controls { display:flex; gap:8px; margin-top:8px; }
-    .controls button, .controls input[type="file"] { flex:1; padding:10px; font-size:16px; }
-    #result-box { margin-top:10px; padding:12px; border-radius:8px; background:#f7f7f7; min-height:48px; font-size:16px; }
-    #overlay { position: relative; margin-top:8px; }
-    .scan-frame {
-      position:absolute; left:50%; top:50%;
-      width:70%; height:40%;
-      transform:translate(-50%,-50%);
-      border:3px dashed rgba(0,200,0,0.0);
-      border-radius:8px;
-      box-sizing:border-box;
-      pointer-events:none;
-    }
-    .scan-frame.ok { border-color: rgba(0,200,0,0.9); background: rgba(0,200,0,0.06); }
-    .hint { font-size:14px; color:#666; margin-top:6px; }
-    #price-input-box { display:none; margin-top:8px; }
-    #price-input-box input { width:60%; padding:8px; font-size:16px; }
-    #price-input-box button { padding:8px 12px; margin-left:6px; font-size:16px; }
-    #list { margin-top:12px; }
-    table { width:100%; border-collapse:collapse; font-size:15px; }
-    th, td { padding:8px; border-bottom:1px solid #eee; text-align:left; }
-    .small { font-size:13px; color:#666; }
-    .btn { padding:8px 10px; margin:4px 2px; font-size:14px; }
-    .danger { background:#ff4d4f; color:#fff; border:none; border-radius:6px; }
-    .primary { background:#1890ff; color:#fff; border:none; border-radius:6px; }
-    .muted { background:#f0f0f0; border:1px solid #ddd; border-radius:6px; }
-    #continuous-toggle { align-self:center; padding:8px; font-size:14px; }
-    #search { padding:8px; flex:1; font-size:16px; }
-  </style>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+}
+
+button {
+    font-size: 18px;
+    padding: 12px 20px;
+    margin: 10px;
+}
+
+#video {
+    width: 100%;
+    max-width: 350px;
+    border: 2px solid #333;
+    margin-top: 15px;
+}
+
+#priceBox {
+    display: none;
+    margin-top: 20px;
+}
+</style>
 </head>
+
 <body>
-  <h1>价格查询</h1>
 
-  <div id="overlay">
-    <video id="video" autoplay playsinline></video>
-    <div id="frame" class="scan-frame"></div>
-  </div>
+<h2>📱 商品价格查询工具</h2>
 
-  <div class="controls" style="margin-top:8px;">
-    <button id="startBtn" class="primary">开始扫码</button>
-    <button id="stopBtn" class="muted">停止</button>
-    <button id="listBtn" class="muted">已保存列表</button>
-  </div>
+<button id="startScan">开始扫码</button>
 
-  <div class="controls" style="margin-top:6px;">
-    <input id="continuous-toggle" type="checkbox"><label for="continuous-toggle" class="small" style="margin-left:6px;">连续模式（自动连续扫码）</label>
-    <input id="search" placeholder="按条码或价格搜索（列表内）">
-    <button id="clearSearch" class="muted">清除</button>
-  </div>
+<video id="video" autoplay playsinline></video>
 
-  <div class="controls" style="margin-top:6px;">
-    <button id="exportBtn" class="muted">导出 CSV</button>
-    <input id="importFile" type="file" accept=".csv" style="flex:1;">
-    <button id="clearDbBtn" class="danger">清空数据库</button>
-  </div>
+<h3 id="result">尚未扫码</h3>
 
-  <div id="result-box">等待扫码或导入价格表…<div class="hint">把条码对准中间框，光线充足识别率更高。</div></div>
-
-  <!-- 价格输入区域（当扫码后无价格时显示） -->
-  <div id="price-input-box">
-    <input id="price-input" type="number" step="0.01" placeholder="输入价格（元）">
-    <button id="save-price-btn" class="primary">保存价格</button>
-    <button id="cancel-price-btn" class="muted">取消</button>
-  </div>
-
-  <!-- 已保存列表 -->
-  <div id="list" style="display:none;">
-    <h3>已保存商品</h3>
-    <div class="hint">共 <span id="count">0</span> 条记录</div>
-    <table id="table">
-      <thead><tr><th>条码</th><th>价格（元）</th><th class="small">操作</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+<div id="priceBox">
+    <p>扫描结果： <b id="codeText"></b></p>
+    <p>价格： <input id="priceInput" type="number" placeholder="请输入价格"> 元</p>
+    <button id="savePrice">保存价格</button>
+</div>
 
 <script>
-/*
-  完整功能说明已集成：
-  - ZXing 扫码（强模式）
-  - 高分辨率摄像头请求
-  - 连续扫描 / 单次扫描
-  - 本地 localStorage 存储（key: priceDB）
-  - 列表编辑、删除、导入、导出 CSV
-  - 扫描成功震动提示 + 视觉提示
-*/
+const codeReader = new ZXing.BrowserMultiFormatReader();
+let currentCode = "";
+let streamStarted = false;
 
-const video = document.getElementById('video');
-const frame = document.getElementById('frame');
-const resultBox = document.getElementById('result-box');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const listBtn = document.getElementById('listBtn');
-const savePriceBtn = document.getElementById('save-price-btn');
-const cancelPriceBtn = document.getElementById('cancel-price-btn');
-const priceInputBox = document.getElementById('price-input-box');
-const priceInput = document.getElementById('price-input');
-const exportBtn = document.getElementById('exportBtn');
-const importFile = document.getElementById('importFile');
-const clearDbBtn = document.getElementById('clearDbBtn');
-const listDiv = document.getElementById('list');
-const tableBody = document.querySelector('#table tbody');
-const countSpan = document.getElementById('count');
-const continuousToggle = document.getElementById('continuous-toggle');
-const searchInput = document.getElementById('search');
-const clearSearch = document.getElementById('clearSearch');
+document.getElementById("startScan").addEventListener("click", async () => {
+    const video = document.getElementById("video");
 
-let codeReader = null;
-let currentStream = null;
-let scanning = false;
-let lastScanned = null;
-let continuousMode = false;
-let priceDB = {}; // in-memory cache (mirror of localStorage)
-const LS_KEY = 'priceDB_v1';
-
-// init
-loadDB();
-renderList();
-
-function loadDB(){
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    priceDB = raw ? JSON.parse(raw) : {};
-  } catch(e){ priceDB = {}; }
-}
-
-function saveDB(){
-  localStorage.setItem(LS_KEY, JSON.stringify(priceDB));
-  renderList();
-}
-
-// render list table
-function renderList(filter){
-  const keys = Object.keys(priceDB).sort();
-  const rows = [];
-  tableBody.innerHTML = '';
-  let shown = 0;
-  keys.forEach(k=>{
-    const v = priceDB[k];
-    if(filter){
-      const f = String(filter).toLowerCase();
-      if(!(k.includes(f) || String(v).includes(f))) return;
+    if (!streamStarted) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "environment" }
+            });
+            video.srcObject = stream;
+            streamStarted = true;
+        } catch (err) {
+            alert("无法打开摄像头：" + err);
+            return;
+        }
     }
-    shown++;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${k}</td><td>${v}</td>
-      <td>
-        <button class="btn" data-act="edit" data-code="${k}">编辑</button>
-        <button class="btn" data-act="del" data-code="${k}">删除</button>
-      </td>`;
-    tableBody.appendChild(tr);
-  });
-  countSpan.textContent = shown;
-}
 
-// helpers
-function vibrate(){
-  if(navigator.vibrate) navigator.vibrate(120);
-}
-function showResult(html){
-  resultBox.innerHTML = html;
-}
-function showTempMsg(text, ms=1200){
-  showResult(text);
-  setTimeout(()=>{ if(!scanning) showResult('等待扫码或导入价格表…'); }, ms);
-}
+    startDecoding();
+});
 
-// start camera with high resolution hint
-async function startCamera(){
-  if(currentStream){
-    try { currentStream.getTracks().forEach(t=>t.stop()); } catch(e){}
-    currentStream = null;
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      audio: false
+function startDecoding() {
+    codeReader.decodeFromVideoDevice(null, "video", (result, err) => {
+        if (result) {
+            const code = result.text;
+            if (code !== currentCode) {
+                currentCode = code;
+                onCodeDetected(code);
+            }
+        }
     });
-    video.srcObject = stream;
-    currentStream = stream;
-    return stream;
-  } catch(err){
-    alert('无法打开摄像头：' + err);
-    throw err;
-  }
 }
 
-// start scanning
-async function startScan(){
-  if(scanning) return;
-  scanning = true;
-  continuousMode = continuousToggle.checked;
+function onCodeDetected(code) {
+    document.getElementById("result").innerText = "扫描成功：" + code;
 
-  try {
-    await startCamera();
-  } catch(e){
-    scanning = false;
-    return;
-  }
+    document.getElementById("priceBox").style.display = "block";
+    document.getElementById("codeText").innerText = code;
 
-  if(!codeReader){
-    // create with tryHarder and restrict formats for speed
-    codeReader = new ZXing.BrowserMultiFormatReader(null, {
-      tryHarder: true,
-      possibleFormats: [
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39
-      ]
-    });
-  }
+    // 读取本地价格
+    const savedPrice = localStorage.getItem("price_" + code);
+    document.getElementById("priceInput").value = savedPrice || "";
+}
 
-  showTempMsg('正在扫描中... 将条码对准框内');
+// 保存价格
+document.getElementById("savePrice").addEventListener("click", () => {
+    if (!currentCode) return;
 
-  // unique small debounce to avoid duplicate triggers
-  lastScanned = null;
-
-  codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
-    if(result){
-      const code = result.text;
-      // de-duplicate within 1.5s
-      const now = Date.now();
-      if(lastScanned && lastScanned.code === code && (now - lastScanned.time) < 1500){
+    const price = document.getElementById("priceInput").value.trim();
+    if (!price) {
+        alert("请输入价格！");
         return;
-      }
-      lastScanned = { code, time: now };
-
-      // visual + vibrate
-      frame.classList.add('ok');
-      setTimeout(()=>frame.classList.remove('ok'), 500);
-      vibrate();
-
-      onBarcodeDetected(code);
-
-      if(!continuousMode){
-        stopScan();
-      } else {
-        // continuous: keep scanning but show brief message
-        showTempMsg('识别：' + code, 1000);
-      }
-    } else {
-      // optional: you can show "未识别"状态 when err exists
-      // console.log(err);
     }
-  });
-}
 
-// stop scanning
-function stopScan(){
-  try {
-    if(codeReader) codeReader.reset();
-  } catch(e){}
-  if(currentStream){
-    try { currentStream.getTracks().forEach(t=>t.stop()); } catch(e){}
-    currentStream = null;
-  }
-  scanning = false;
-  showResult('已停止扫描。');
-}
-
-// when barcode found
-function onBarcodeDetected(code){
-  showResult(`条码：<b>${code}</b>`);
-  // if has price, show it
-  if(priceDB[code] !== undefined){
-    showResult(`条码：<b>${code}</b><br>价格：<b>¥ ${priceDB[code]}</b>`);
-    // optionally quick-edit?
-  } else {
-    showResult(`条码：<b>${code}</b><br><span class="small">未设置价格，请输入并保存</span>`);
-    // show input box
-    priceInputBox.style.display = 'block';
-    priceInput.value = '';
-    // focus input a bit later
-    setTimeout(()=>priceInput.focus(),200);
-    // store last code for saving
-    priceInputBox.dataset.last = code;
-  }
-}
-
-// save price
-savePriceBtn.onclick = () => {
-  const code = priceInputBox.dataset.last;
-  const price = priceInput.value.trim();
-  if(!code) { alert('未检测到条码'); return; }
-  if(price === '' || isNaN(Number(price))){
-    alert('请输入有效价格');
-    return;
-  }
-  priceDB[code] = Number(price).toFixed(2);
-  saveDB();
-  priceInputBox.style.display = 'none';
-  showResult(`条码：<b>${code}</b><br>价格：<b>¥ ${priceDB[code]}</b>（已保存）`);
-};
-
-// cancel price input
-cancelPriceBtn.onclick = () => {
-  priceInputBox.style.display = 'none';
-  showTempMsg('已取消', 800);
-};
-
-// buttons binding
-startBtn.onclick = () => startScan();
-stopBtn.onclick = () => stopScan();
-listBtn.onclick = () => {
-  listDiv.style.display = listDiv.style.display === 'none' ? 'block' : 'none';
-  renderList(searchInput.value.trim());
-};
-
-// table action (edit / delete)
-tableBody.addEventListener('click', (e)=>{
-  const btn = e.target.closest('button');
-  if(!btn) return;
-  const act = btn.dataset.act;
-  const code = btn.dataset.code;
-  if(act === 'edit'){
-    const current = priceDB[code];
-    const newPrice = prompt('修改价格（元）', current);
-    if(newPrice !== null){
-      if(newPrice === '' || isNaN(Number(newPrice))){ alert('请输入合法数字'); return; }
-      priceDB[code] = Number(newPrice).toFixed(2);
-      saveDB();
-      showTempMsg('已修改', 800);
-    }
-  } else if(act === 'del'){
-    if(confirm('确认删除条码 ' + code + ' 的价格？')){
-      delete priceDB[code];
-      saveDB();
-      showTempMsg('已删除', 800);
-    }
-  }
+    localStorage.setItem("price_" + currentCode, price);
+    alert("价格已保存！");
 });
-
-// export CSV
-exportBtn.onclick = () => {
-  const keys = Object.keys(priceDB).sort();
-  let csv = 'barcode,price\r\n';
-  keys.forEach(k => csv += `${k},${priceDB[k]}\r\n`);
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'prices.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-};
-
-// import CSV
-importFile.onchange = (e) => {
-  const f = e.target.files[0];
-  if(!f) return;
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    const text = evt.target.result;
-    parseCSVAndMerge(text);
-    importFile.value = '';
-  };
-  reader.readAsText(f, 'utf-8');
-};
-
-function parseCSVAndMerge(text){
-  // accept barcode,price per line; skip header if found
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
-  let merged = 0;
-  lines.forEach((ln, idx)=>{
-    if(idx===0 && /barcode/i.test(ln) && /price/i.test(ln)) return; // skip header
-    const parts = ln.split(',');
-    if(parts.length>=2){
-      const b = parts[0].trim();
-      const p = parts[1].trim();
-      if(b && p && !isNaN(Number(p))){
-        priceDB[b] = Number(p).toFixed(2);
-        merged++;
-      }
-    }
-  });
-  saveDB();
-  alert('导入完成，新增/更新 ' + merged + ' 条记录');
-}
-
-// clear DB
-clearDbBtn.onclick = () => {
-  if(confirm('确认清空本地所有价格？此操作不可恢复')) {
-    priceDB = {};
-    saveDB();
-    showTempMsg('已清空', 1000);
-  }
-};
-
-// search filter
-searchInput.addEventListener('input', (e)=>{
-  renderList(e.target.value.trim());
-});
-clearSearch.onclick = ()=>{ searchInput.value=''; renderList(); };
-
-// click outside to hide price input
-document.addEventListener('click', (e)=>{
-  if(!e.target.closest('#price-input-box') && !e.target.closest('#save-price-btn') && !e.target.closest('#startBtn')){
-    // do nothing now
-  }
-});
-
-// initial UI
-renderList();
-
-/* 注意事项：
- - iPhone Safari 必须通过 https（GitHub Pages 已经是 https），打开页面并允许访问相机；
- - 若摄像头黑屏或对焦慢，请在光线充足的环境下使用，条码距离镜头 15-30cm 之间；
- - continuous 模式会持续扫描并保存结果（不会自动覆盖价格，若未设置仍会提示输入）。
-*/
-
 </script>
+
 </body>
 </html>
