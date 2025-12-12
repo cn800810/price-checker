@@ -1,110 +1,119 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>价格查询工具</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格查询工具</title>
 
-  <!-- 引入条码扫描库 -->
-  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+    <!-- 引入 ZXing 条码扫描库 -->
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      padding-bottom: 50px;
-    }
-    h1 {
-      text-align: center;
-    }
-    #video {
-      width: 100%;
-      max-height: 300px;
-      background: #000;
-    }
-    #result-box {
-      margin-top: 20px;
-      padding: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 18px;
-    }
-    button {
-      width: 100%;
-      margin-top: 10px;
-      padding: 12px;
-      font-size: 18px;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      font-size: 18px;
-      margin-top: 10px;
-    }
-  </style>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding-bottom: 50px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #video {
+            width: 100%;
+            max-height: 300px;
+            background: #000;
+        }
+        #result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 18px;
+        }
+        button {
+            width: 100%;
+            margin-top: 10px;
+            padding: 12px;
+            font-size: 18px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 
 <body>
-  <h1>价格查询工具</h1>
+    <h1>价格查询工具</h1>
 
-  <!-- 摄像头预览 -->
-  <video id="video" autoplay></video>
+    <!-- 摄像头画面 -->
+    <video id="video" autoplay></video>
 
-  <!-- 扫描和输入条码 -->
-  <button id="scan-btn">开始扫码</button>
+    <!-- 按钮和输入框 -->
+    <button id="scan-btn">开始扫码</button>
+    <input id="manual-input" type="text" placeholder="手动输入条码">
+    <button id="check-btn">查询价格</button>
 
-  <input id="manual-input" type="text" placeholder="手动输入条码" />
-  <button id="check-btn">查询价格</button>
+    <!-- 显示结果 -->
+    <div id="result-box">等待扫码或输入条码...</div>
 
-  <!-- 结果显示 -->
-  <div id="result-box">等待扫码或输入条码...</div>
-
-  <script>
+<script>
     const codeReader = new ZXing.BrowserMultiFormatReader();
-    const videoElement = document.getElementById("video");
+    const video = document.getElementById("video");
     const resultBox = document.getElementById("result-box");
+    let scanning = false;
 
     // 点击开始扫码
     document.getElementById("scan-btn").onclick = async () => {
-      try {
-        const devices = await codeReader.listVideoInputDevices();
+        if (scanning) return;
 
-        if (devices.length === 0) {
-          resultBox.textContent = "未找到摄像头设备。";
-          return;
+        try {
+            scanning = true;
+
+            const devices = await codeReader.listVideoInputDevices();
+            if (devices.length === 0) {
+                resultBox.innerText = "未找到摄像头设备";
+                return;
+            }
+
+            // 优先后置摄像头
+            let deviceId = devices[devices.length - 1].deviceId;
+
+            codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+                if (result) {
+                    const barcode = result.text;
+                    resultBox.innerText = "识别到条码：" + barcode;
+                    codeReader.reset(); // 停止扫码
+                    scanning = false;
+
+                    // 调用价格查询（这里先模拟）
+                    checkPrice(barcode);
+                }
+            });
+
+            resultBox.innerText = "正在扫描条码...";
+        } catch (error) {
+            resultBox.innerText = "扫码失败：" + error;
+            scanning = false;
         }
-
-        // 默认使用后置摄像头
-        const backCamera = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
-
-        resultBox.textContent = "正在启动摄像头...";
-
-        await codeReader.decodeFromVideoDevice(backCamera.deviceId, videoElement, (result) => {
-          if (result) {
-            resultBox.textContent = "扫码成功！条码：" + result.text;
-            checkPrice(result.text);
-          }
-        });
-      } catch (err) {
-        resultBox.textContent = "摄像头启动失败：" + err;
-      }
     };
 
-    // 点击查询按钮（手动输入）
+    // 手动查询按钮
     document.getElementById("check-btn").onclick = () => {
-      const code = document.getElementById("manual-input").value.trim();
-      if (code === "") {
-        resultBox.textContent = "请输入条码";
-        return;
-      }
-      checkPrice(code);
+        const code = document.getElementById("manual-input").value.trim();
+        if (!code) {
+            resultBox.innerText = "请输入条码";
+            return;
+        }
+        checkPrice(code);
     };
 
-    // 模拟价格查询函数（你可以改成自己的 API）
+    // 模拟查询功能，可根据你需要改成 API
     function checkPrice(barcode) {
-      // 简单示例：所有商品统一返回 9.99
-      resultBox.textContent = "条码：" + barcode + "\n价格：¥9.99";
+        resultBox.innerText = "条码：" + barcode + "\n价格：¥" + (Math.random() * 100).toFixed(2);
     }
-  </script>
+</script>
+
 </body>
 </html>
