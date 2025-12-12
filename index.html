@@ -11,388 +11,348 @@
     --primary:#2d7ff9;
     --bg:#f5f7fb;
     --card:#ffffff;
-    --muted:#888;
   }
-  html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial;background:var(--bg);color:#222}
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 14px}
-  .title{font-size:22px;font-weight:600;margin:0}
-  .subtitle{font-size:13px;color:#ff4444;margin-top:2px;text-align:center}
+  html,body{
+    height:100%;margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial;
+    background:var(--bg);color:#222;
+  }
+
+  /* 顶部 */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 14px;
+  }
+  .title{font-size:22px;font-weight:600;margin:0;text-align:left}
+  .subtitle{
+    font-size:13px;color:#ff4444;margin-top:2px;text-align:left;
+  }
+
   .container{padding:0 14px 28px}
-  .search-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
-  input[type="text"]{width:64%;max-width:320px;padding:12px;border-radius:10px;border:1px solid #d8d8d8;font-size:16px}
-  button.btn{padding:12px 16px;border-radius:10px;border:none;background:var(--primary);color:#fff;font-size:16px}
-  button.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);color:var(--primary)}
-  .hint{font-size:13px;color:#ff4444;text-align:center;margin-top:6px}
+  .search-row{
+    display:flex;gap:8px;justify-content:center;margin-top:10px
+  }
+  input[type="text"]{
+    width:64%;max-width:320px;padding:12px;border-radius:10px;
+    border:1px solid #d8d8d8;font-size:16px
+  }
+  button.btn{
+    padding:12px 16px;border-radius:10px;border:none;
+    background:var(--primary);color:#fff;font-size:16px
+  }
 
-  /* modal overlay */
-  .overlay{display:none;position:fixed;inset:0;justify-content:center;align-items:flex-start;padding-top:80px;background:rgba(0,0,0,0.45);z-index:1200}
-  .modal{background:var(--card);width:92%;max-width:420px;border-radius:14px;padding:18px 18px 22px;box-shadow:0 12px 40px rgba(0,0,0,0.12);position:relative}
-  .modal .close{position:absolute;right:12px;top:10px;font-size:22px;cursor:pointer;color:#666}
-  .modal-title{font-size:24px;margin:4px 0 6px 0}
-  .modal-code{font-size:15px;color:#444;margin-bottom:6px}
-  .modal-price{font-size:28px;font-weight:700;color:#0abf24;margin:8px 0 12px}
-  .modal-no-price{font-size:20px;color:#d33;margin:8px 0 12px}
-  .modal input[type="number"], .modal input[type="text"]{width:55%;display:block;margin:0 auto;padding:10px;font-size:16px;border-radius:8px;border:1px solid #ccc}
-  .modal .save-btn{margin-top:14px;width:85%;max-width:300px;padding:12px;font-size:18px;border-radius:10px;background:var(--primary);color:#fff;border:none;display:block;margin-left:auto;margin-right:auto}
-  .save-msg{margin-top:10px;color:#28a745;font-size:15px;display:none;text-align:center}
+  .hint{
+    font-size:13px;color:#ff4444;text-align:center;margin-top:6px
+  }
 
-  /* list drawer */
-  .menu-btn{background:transparent;border:none;padding:8px;border-radius:8px;font-size:16px;color:var(--primary)}
-  .drawer{position:fixed;right:0;top:0;height:100%;width:92%;max-width:420px;background:var(--card);box-shadow:-8px 0 24px rgba(0,0,0,0.12);transform:translateX(100%);transition:transform .28s;z-index:1250;overflow:auto}
+  /* 弹窗口整体居中 */
+  .overlay{
+    display:none;position:fixed;inset:0;
+    justify-content:center;align-items:center;
+    background:rgba(0,0,0,0.45);z-index:1200
+  }
+
+  /* Modal */
+  .modal{
+    background:var(--card);width:92%;max-width:420px;
+    border-radius:14px;padding:20px 18px 26px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.12);
+    position:relative;text-align:center;
+  }
+  .modal .close{
+    position:absolute;right:12px;top:10px;font-size:22px;
+    cursor:pointer;color:#666
+  }
+  .modal-title{
+    font-size:24px;font-weight:700;margin:6px 0 10px
+  }
+  .modal-code{
+    font-size:15px;color:#444;margin-bottom:8px
+  }
+  .modal-price{
+    font-size:30px;font-weight:700;color:#0abf24;margin:10px 0 18px
+  }
+  .modal-no-price{
+    font-size:22px;color:#d33;margin:10px 0 18px
+  }
+
+  /* 图片居中 + 放大到120×120 */
+  #modalImage{
+    width:120px;height:120px;object-fit:cover;
+    border-radius:10px;border:1px solid #eee;
+    display:none;margin:0 auto 14px auto;
+  }
+
+  .modal input[type="number"]{
+    width:55%;padding:10px;font-size:16px;border-radius:8px;
+    border:1px solid #ccc;margin:0 auto;display:block;
+  }
+
+  .save-btn{
+    margin-top:14px;width:85%;max-width:300px;padding:12px;
+    font-size:18px;border-radius:10px;
+    background:var(--primary);color:#fff;border:none;
+    display:block;margin-left:auto;margin-right:auto
+  }
+
+  .save-msg{
+    margin-top:10px;color:#28a745;font-size:15px;
+    display:none;text-align:center
+  }
+
+  /* 列表抽屉 */
+  .menu-btn{
+    background:transparent;border:none;padding:8px;
+    border-radius:8px;color:var(--primary);font-size:16px;
+  }
+
+  .drawer{
+    position:fixed;right:0;top:0;height:100%;
+    width:92%;max-width:420px;background:var(--card);
+    box-shadow:-8px 0 24px rgba(0,0,0,0.12);
+    transform:translateX(100%);transition:transform .28s;
+    z-index:1250;overflow:auto;
+  }
   .drawer.open{transform:translateX(0)}
-  .drawer-header{display:flex;align-items:center;justify-content:space-between;padding:16px 14px;border-bottom:1px solid #f0f0f0}
+  .drawer-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 14px;border-bottom:1px solid #f0f0f0
+  }
+
   .drawer-list{padding:10px}
-  .item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:#fafafa;margin-bottom:10px}
-  .thumb{width:50px;height:50px;border-radius:6px;background:#eee;object-fit:cover;border:1px solid #e6e6e6}
-  .item-info{flex:1;text-align:left}
+  .item{
+    display:flex;align-items:center;gap:12px;padding:10px;
+    background:#fafafa;border-radius:10px;margin-bottom:10px
+  }
+  .thumb{
+    width:50px;height:50px;border-radius:6px;background:#eee;
+    object-fit:cover;border:1px solid #e6e6e6
+  }
+  .item-info{text-align:left;flex:1}
   .item-code{font-weight:600}
   .item-price{color:#0abf24;font-weight:700;margin-top:6px}
-  .item-actions{display:flex;flex-direction:column;gap:6px}
-  .small-btn{padding:6px 8px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:13px}
 
-  /* responsive */
-  @media (min-width:720px){
-    .search-row input { width:48%; }
+  .item-actions{
+    display:flex;flex-direction:column;gap:6px
+  }
+  .small-btn{
+    padding:6px 8px;border-radius:8px;border:1px solid #ddd;
+    background:#fff;font-size:13px
   }
 
-  /* image input invisible overlay on thumbnail */
-  .thumb-input{display:none}
-  .thumb-wrap{position:relative}
-  .thumb-edit {
-    position:absolute;right:-6px;bottom:-6px;background:#fff;border-radius:999px;padding:4px;border:1px solid #ddd;font-size:12px;cursor:pointer;
-  }
 </style>
 </head>
 <body>
 
-  <div class="topbar">
-    <div style="display:flex;flex-direction:column;">
-      <div class="title">价格查询</div>
-      <div class="subtitle" style="font-size:13px;color:#ff4444">(请输入后 5 位数)</div>
-    </div>
+<!-- 顶部 -->
+<div class="topbar">
+  <div style="display:flex;flex-direction:column;">
+    <div class="title">价格查询</div>
+    <div class="subtitle">(请输入后 5 位数)</div>
+  </div>
+  <button class="menu-btn" id="openListBtn">☰ 列表</button>
+</div>
 
-    <div>
-      <button class="menu-btn" id="openListBtn" title="已保存商品">☰ 列表</button>
-    </div>
+<div class="container">
+  <div class="search-row">
+    <input id="codeInput" type="text" maxlength="5" placeholder="输入后5位或完整代码">
+    <button class="btn" onclick="doSearch()">查询</button>
+  </div>
+  <div class="hint">（输入后5位，示例：12345）</div>
+</div>
+
+<!-- 抽屉商品列表 -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div style="font-weight:700">已保存商品</div>
+    <button class="small-btn" id="closeListBtn">关闭</button>
   </div>
 
-  <div class="container">
-    <div class="search-row">
-      <input id="codeInput" type="text" maxlength="5" placeholder="输入后5位或完整商品代码">
-      <button class="btn" onclick="doSearch()">查询</button>
-    </div>
-    <div class="hint" id="hintText">（输入后5位，示例：12345）</div>
+  <div style="padding:12px">
+    <input id="searchList" type="text" placeholder="搜索条码或价格"
+      style="width:75%;padding:8px;border-radius:8px;border:1px solid #eee">
+    <button class="small-btn" id="clearSearchList">清除</button>
   </div>
 
-  <!-- 右侧抽屉：商品列表 -->
-  <div class="drawer" id="drawer">
-    <div class="drawer-header">
-      <div style="font-weight:700">已保存商品</div>
-      <div>
-        <button class="small-btn" id="closeListBtn">关闭</button>
-      </div>
-    </div>
+  <div class="drawer-list" id="listArea"></div>
 
-    <div style="padding:10px;display:flex;gap:8px;align-items:center">
-      <input id="searchList" type="text" placeholder="搜索条码或价格" style="flex:1;padding:8px;border-radius:8px;border:1px solid #eee">
-      <button class="small-btn" id="clearSearchList">清除</button>
-    </div>
-
-    <div class="drawer-list" id="listArea">
-      <!-- 列表项动态填充 -->
-    </div>
-
-    <div style="padding:12px;border-top:1px solid #f0f0f0">
-      <button class="small-btn" id="exportBtn">导出 CSV</button>
-      <input type="file" id="importFile" accept=".csv,image/*" style="display:none">
-      <button class="small-btn" id="importBtn">导入 CSV</button>
-      <button class="small-btn" id="clearDBBtn">清空库</button>
-    </div>
+  <div style="padding:12px;border-top:1px solid #f0f0f0">
+    <button class="small-btn" id="exportBtn">导出 CSV</button>
+    <input type="file" id="importFile" accept=".csv,image/*" style="display:none">
+    <button class="small-btn" id="importBtn">导入 CSV</button>
+    <button class="small-btn" id="clearDBBtn">清空库</button>
   </div>
+</div>
 
-  <!-- 结果弹窗 -->
-  <div class="overlay" id="overlay">
-    <div class="modal" role="dialog" aria-modal="true">
-      <span class="close" onclick="closeOverlay()">×</span>
-      <div id="modalTitle" class="modal-title">查询成功</div>
-      <div id="modalCode" class="modal-code">商品代码：</div>
-      <div id="modalPrice" class="modal-price"></div>
-      <div id="noPrice" class="modal-no-price" style="display:none">请录入价格</div>
+<!-- 弹窗 -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <span class="close" onclick="closeOverlay()">×</span>
 
-      <!-- 图片显示与更换 -->
-      <div style="margin:10px 0;text-align:center">
-        <img id="modalImage" src="" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #eee;display:none">
-      </div>
+    <div id="modalTitle" class="modal-title">查询成功</div>
+    <div id="modalCode" class="modal-code"></div>
+    <div id="modalPrice" class="modal-price" style="display:none"></div>
+    <div id="noPrice" class="modal-no-price" style="display:none">请录入价格</div>
 
-      <input id="priceInput" type="number" step="0.01" placeholder="输入价格（保留两位）">
+    <img id="modalImage" src="">
 
-      <div style="margin-top:12px">
-        <button class="save-btn" id="saveBtn" onclick="overlaySave()">保存</button>
-      </div>
-
-      <div id="saveMsg" class="save-msg">保存成功</div>
-    </div>
+    <input id="priceInput" type="number" step="0.01" placeholder="输入价格（保留两位）">
+    <button class="save-btn" onclick="overlaySave()">保存</button>
+    <div id="saveMsg" class="save-msg">保存成功</div>
   </div>
+</div>
 
 <script>
-/* ========== 数据模型（localStorage 存储） ==========
-Structure:
-priceDB_v3 = {
-  "<code>": { price: "12.50", image: "data:image/..;base64,..." }
-}
-*/
-const LS_KEY = 'priceDB_v3';
+/* 数据结构 localStorage */
+const KEY = "priceDB_v3";
 let db = {};
-
-// load db
-function loadDB(){ try{ db = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }catch(e){ db = {}; } }
-function saveDB(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
-
-// init
+function loadDB(){ db = JSON.parse(localStorage.getItem(KEY) || "{}"); }
+function saveDB(){ localStorage.setItem(KEY, JSON.stringify(db)); }
 loadDB();
 
-/* ====== UI 控件 ====== */
-const openListBtn = document.getElementById('openListBtn');
-const drawer = document.getElementById('drawer');
-const closeListBtn = document.getElementById('closeListBtn');
-const listArea = document.getElementById('listArea');
-const searchList = document.getElementById('searchList');
-const clearSearchList = document.getElementById('clearSearchList');
-const overlay = document.getElementById('overlay');
-const modalTitle = document.getElementById('modalTitle');
-const modalCode = document.getElementById('modalCode');
-const modalPrice = document.getElementById('modalPrice');
-const noPrice = document.getElementById('noPrice');
-const modalImage = document.getElementById('modalImage');
-const priceInput = document.getElementById('priceInput');
-const saveMsg = document.getElementById('saveMsg');
+/* DOM */
+const drawer=document.getElementById("drawer");
+const overlay=document.getElementById("overlay");
+const modalImage=document.getElementById("modalImage");
 
-openListBtn.addEventListener('click', ()=>{ drawer.classList.add('open'); renderList(); });
-closeListBtn.addEventListener('click', ()=>{ drawer.classList.remove('open'); });
-clearSearchList.addEventListener('click', ()=>{ searchList.value=''; renderList(); });
-searchList.addEventListener('input', ()=> renderList(searchList.value.trim()));
+document.getElementById("openListBtn").onclick=()=>{drawer.classList.add("open");renderList();}
+document.getElementById("closeListBtn").onclick=()=>drawer.classList.remove("open");
+document.getElementById("clearSearchList").onclick=()=>{document.getElementById("searchList").value="";renderList();};
+document.getElementById("searchList").oninput=()=>renderList();
 
-/* ====== 列表渲染 ====== */
-function renderList(filter=''){
-  listArea.innerHTML = '';
-  const keys = Object.keys(db).sort();
-  if(keys.length === 0){
-    listArea.innerHTML = '<div class="small" style="color:#666;padding:12px;text-align:center">暂无已保存商品</div>';
-    return;
-  }
-  keys.forEach(code=>{
-    const item = db[code];
-    const showText = `${code} ${item.price || ''}`;
-    if(filter){
-      const low = filter.toLowerCase();
-      if(!code.toLowerCase().includes(low) && !(item.price+'').toLowerCase().includes(low)) return;
-    }
-    const row = document.createElement('div'); row.className='item';
-    // thumbnail
-    const thumbWrap = document.createElement('div'); thumbWrap.className='thumb-wrap';
-    const img = document.createElement('img'); img.className='thumb'; img.src = item.image || '';
-    if(!item.image) img.style.background = '#f0f0f0';
-    thumbWrap.appendChild(img);
-
-    // small edit icon overlay for mobile camera upload
-    const editBtn = document.createElement('button'); editBtn.className='thumb-edit'; editBtn.title='更改图片';
-    editBtn.innerText='✎';
-    thumbWrap.appendChild(editBtn);
-
-    // hidden file input to receive image
-    const fileInp = document.createElement('input'); fileInp.type='file'; fileInp.accept='image/*'; fileInp.className='thumb-input';
-    fileInp.style.display='none';
-    thumbWrap.appendChild(fileInp);
-
-    editBtn.addEventListener('click', ()=> fileInp.click());
-    fileInp.addEventListener('change', (e)=> {
-      const f = e.target.files[0]; if(!f) return;
-      const reader = new FileReader();
-      reader.onload = (ev)=> {
-        item.image = ev.target.result;
-        saveDB(); renderList(searchList.value.trim());
-        // if overlay open for this code, update image
-        const current = document.getElementById('modalCode').dataset.code;
-        if(current === code){ modalImage.src = item.image; modalImage.style.display='block'; }
-      };
-      reader.readAsDataURL(f);
-      e.target.value = '';
-    });
-
-    // info
-    const info = document.createElement('div'); info.className='item-info';
-    const codeDiv = document.createElement('div'); codeDiv.className='item-code'; codeDiv.innerText = code;
-    const priceDiv = document.createElement('div'); priceDiv.className='item-price'; priceDiv.innerText = item.price ? '¥'+item.price : '未设置';
-    info.appendChild(codeDiv); info.appendChild(priceDiv);
-
-    // actions
-    const actions = document.createElement('div'); actions.className='item-actions';
-    const viewBtn = document.createElement('button'); viewBtn.className='small-btn'; viewBtn.innerText='查看';
-    const delBtn = document.createElement('button'); delBtn.className='small-btn'; delBtn.innerText='删除';
-    actions.appendChild(viewBtn); actions.appendChild(delBtn);
-
-    viewBtn.addEventListener('click', ()=> openOverlay(code));
-    delBtn.addEventListener('click', ()=>{
-      if(!confirm('确认删除 ' + code + ' ?')) return;
-      delete db[code]; saveDB(); renderList(searchList.value.trim());
-    });
-
-    row.appendChild(thumbWrap);
-    row.appendChild(info);
-    row.appendChild(actions);
-    listArea.appendChild(row);
-  });
-}
-
-/* ====== 查询逻辑 ====== */
+/* 查询 */
 function doSearch(){
-  const code = (document.getElementById('codeInput').value || '').trim();
-  if(!code){ alert('请输入商品代码（后5位或完整）'); return; }
-  openListBtn.focus();
+  const code=document.getElementById("codeInput").value.trim();
+  if(!code){ alert("请输入代码"); return;}
   openOverlayFor(code);
 }
 
-/* open overlay via search (and open drawer if needed) */
+/* 打开弹窗 */
 function openOverlayFor(code){
-  // ensure db loaded
   loadDB();
-  const rec = db[code];
-  openOverlay(code, rec);
-}
+  const rec=db[code];
+  document.getElementById("modalCode").innerText="商品代码："+code;
+  document.getElementById("modalCode").dataset.code=code;
 
-/* open overlay with data or blank */
-function openOverlay(code, rec){
-  document.getElementById('overlay').style.display = 'flex';
-  document.getElementById('modalTitle').innerText = rec ? '查询成功' : '未找到价格';
-  const codeEl = document.getElementById('modalCode');
-  codeEl.innerText = '商品代码：' + code;
-  codeEl.dataset.code = code;
   if(rec && rec.price){
-    document.getElementById('modalPrice').innerText = '¥' + rec.price;
-    document.getElementById('modalPrice').style.display='block';
-    document.getElementById('noPrice').style.display='none';
-    priceInput.value = rec.price;
-  } else {
-    document.getElementById('modalPrice').innerText = '';
-    document.getElementById('modalPrice').style.display='none';
-    document.getElementById('noPrice').style.display='block';
-    priceInput.value = '';
+    document.getElementById("modalTitle").innerText="查询成功";
+    document.getElementById("modalPrice").innerText="¥"+rec.price;
+    document.getElementById("modalPrice").style.display="block";
+    document.getElementById("noPrice").style.display="none";
+    priceInput.value=rec.price;
+  }else{
+    document.getElementById("modalTitle").innerText="未找到价格";
+    document.getElementById("modalPrice").style.display="none";
+    document.getElementById("noPrice").style.display="block";
+    priceInput.value="";
   }
 
-  // image
   if(rec && rec.image){
-    modalImage.src = rec.image;
-    modalImage.style.display='block';
-  } else {
-    modalImage.style.display='none';
-    modalImage.src = '';
+    modalImage.src=rec.image;
+    modalImage.style.display="block";
+  }else{
+    modalImage.style.display="none";
   }
 
-  saveMsg.style.display='none';
+  document.getElementById("saveMsg").style.display="none";
+  overlay.style.display="flex";
 }
 
-/* attach close overlay */
-function closeOverlay(){ document.getElementById('overlay').style.display='none'; }
+function closeOverlay(){ overlay.style.display="none"; }
 
-/* overlay save: create or update */
-async function overlaySave(){
-  const code = document.getElementById('modalCode').dataset.code;
-  let val = priceInput.value.trim();
-  if(!val || isNaN(val)){ alert('请输入正确价格'); return; }
-  val = parseFloat(val).toFixed(2);
-  // ensure db loaded
+/* 保存 */
+function overlaySave(){
+  const code=document.getElementById("modalCode").dataset.code;
+  let val=document.getElementById("priceInput").value.trim();
+  if(!val||isNaN(val)){alert("请输入正确价格"); return;}
+  val=parseFloat(val).toFixed(2);
+
   loadDB();
-  if(!db[code]) db[code] = { price: val, image: null };
-  else db[code].price = val;
+  if(!db[code]) db[code]={price:val,image:null};
+  else db[code].price=val;
   saveDB();
-  saveMsg.style.display='block';
-  document.getElementById('modalPrice').innerText = '¥' + val;
-  document.getElementById('modalPrice').style.display='block';
-  document.getElementById('noPrice').style.display='none';
-  // update list UI if open
-  renderList(searchList.value.trim());
+
+  document.getElementById("modalPrice").innerText="¥"+val;
+  document.getElementById("modalPrice").style.display="block";
+  document.getElementById("noPrice").style.display="none";
+  document.getElementById("saveMsg").style.display="block";
+
+  renderList();
 }
 
-/* ====== thumbnail image change inside overlay ====== */
-/* allow user to tap modalImage to change picture (open file input) */
-(function attachModalImageUpload(){
-  // create hidden file input
-  const fileInp = document.createElement('input'); fileInp.type='file'; fileInp.accept='image/*'; fileInp.style.display='none';
-  document.body.appendChild(fileInp);
-  modalImage.addEventListener('click', ()=> fileInp.click());
-  // also allow long-press? keep simple
-  fileInp.addEventListener('change', (e)=>{
-    const f = e.target.files[0]; if(!f) return;
-    const reader = new FileReader();
-    reader.onload = (ev)=>{
-      const code = document.getElementById('modalCode').dataset.code;
-      if(!code) return;
-      loadDB();
-      if(!db[code]) db[code] = { price: null, image: ev.target.result };
-      else db[code].image = ev.target.result;
-      saveDB();
-      modalImage.src = ev.target.result;
-      modalImage.style.display='block';
-      renderList(searchList.value.trim());
+/* 列表渲染 */
+function renderList(filter=""){
+  const list=document.getElementById("listArea");
+  list.innerHTML="";
+  const keys=Object.keys(db).sort();
+  if(keys.length==0){
+    list.innerHTML='<div style="text-align:center;color:#777;padding:20px">暂无商品</div>';
+    return;
+  }
+
+  keys.forEach(code=>{
+    const r=db[code];
+    if(filter){
+      const f=filter.toLowerCase();
+      if(!code.toLowerCase().includes(f) && !(r.price+"").includes(f)) return;
+    }
+
+    const div=document.createElement("div"); div.className="item";
+
+    const img=document.createElement("img");
+    img.className="thumb";
+    img.src=r.image||"";
+    div.appendChild(img);
+
+    const info=document.createElement("div"); info.className="item-info";
+    info.innerHTML=`<div class="item-code">${code}</div>
+                    <div class="item-price">${r.price?"¥"+r.price:"未设置"}</div>`;
+    div.appendChild(info);
+
+    const acts=document.createElement("div"); acts.className="item-actions";
+    const b1=document.createElement("button"); b1.className="small-btn"; b1.innerText="查看";
+    b1.onclick=()=>openOverlayFor(code);
+    const b2=document.createElement("button"); b2.className="small-btn"; b2.innerText="删除";
+    b2.onclick=()=>{
+      if(confirm("确认删除？")){
+        delete db[code];
+        saveDB();
+        renderList(filter);
+      }
     };
-    reader.readAsDataURL(f);
-    e.target.value='';
+    acts.appendChild(b1); acts.appendChild(b2);
+    div.appendChild(acts);
+
+    list.appendChild(div);
   });
+}
+
+/* 点击图片可更换 */
+(()=>{
+  const inp=document.createElement("input");
+  inp.type="file"; inp.accept="image/*"; inp.style.display="none";
+  document.body.appendChild(inp);
+
+  modalImage.onclick=()=>inp.click();
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      const code=document.getElementById("modalCode").dataset.code;
+      loadDB();
+      if(!db[code]) db[code]={price:null,image:ev.target.result};
+      else db[code].image=ev.target.result;
+      saveDB();
+      modalImage.src=ev.target.result;
+      modalImage.style.display="block";
+      renderList();
+    };
+    r.readAsDataURL(f);
+    inp.value='';
+  };
 })();
 
-/* ====== export / import / clear DB ====== */
-document.getElementById('exportBtn').addEventListener('click', ()=>{
-  loadDB();
-  const rows = [['barcode','price','image']];
-  Object.keys(db).forEach(k=> rows.push([k, db[k].price || '', db[k].image || '']));
-  const csv = rows.map(r => r.map(c=> '"' + String(c||'').replace(/"/g,'""') + '"' ).join(',')).join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'prices_export.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-});
-
-document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
-document.getElementById('importFile').addEventListener('change', (e)=>{
-  const f = e.target.files[0]; if(!f) return;
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    const text = ev.target.result;
-    // parse CSV simple
-    const lines = text.split(/\r?\n/).map(l=> l.trim()).filter(l=> l);
-    const start = lines[0].toLowerCase().includes('barcode') ? 1 : 0;
-    let added = 0;
-    for(let i=start;i<lines.length;i++){
-      const cols = lines[i].split(',');
-      if(cols.length>=2){
-        const code = cols[0].replace(/(^"|"$)/g,'').trim();
-        const price = cols[1].replace(/(^"|"$)/g,'').trim();
-        const image = cols[2] ? cols[2].replace(/(^"|"$)/g,'').trim() : null;
-        if(code){
-          db[code] = { price: price || null, image: image || null };
-          added++;
-        }
-      }
-    }
-    saveDB(); renderList(); alert('导入完成，新增/更新 '+added+' 条');
-  };
-  reader.readAsText(f,'utf-8');
-  e.target.value='';
-});
-
-document.getElementById('clearDBBtn').addEventListener('click', ()=>{
-  if(!confirm('确认清空本地库存？此操作不可恢复')) return;
-  db = {}; saveDB(); renderList(); alert('已清空');
-});
-
-/* ====== helpers ====== */
-function openList(){
-  drawer.classList.add('open'); renderList();
-}
-openListBtn.addEventListener('click', openList);
-
-/* ensure initial render */
-renderList();
-
 </script>
+
 </body>
 </html>
