@@ -1,196 +1,205 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>价格查询工具</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>价格查询与管理工具</title>
 
 <style>
     body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-        background: #f5f7fa;
+        font-family: Arial;
+        background: #f5f5f5;
         margin: 0;
         padding: 20px;
+        text-align: center;
     }
 
     h1 {
-        text-align: center;
-        margin-bottom: 25px;
-        color: #333;
+        margin-top: 10px;
     }
 
-    .card {
-        background: white;
-        padding: 20px;
-        margin-bottom: 20px;
-        border-radius: 14px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    .input-box {
+        margin: 20px auto;
+        max-width: 400px;
+        display: flex;
+        gap: 10px;
     }
 
     input {
-        width: 100%;
-        padding: 14px;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-        font-size: 17px;
-        margin-top: 8px;
-        margin-bottom: 12px;
+        flex: 1;
+        padding: 10px;
+        font-size: 18px;
     }
 
     button {
-        width: 100%;
-        padding: 14px;
-        background: #007aff;
-        color: white;
-        border: none;
-        border-radius: 10px;
+        padding: 10px 20px;
         font-size: 18px;
         cursor: pointer;
     }
 
-    button:active {
-        opacity: 0.7;
+    /* 全屏遮罩 */
+    .overlay {
+        position: fixed;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.65);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
     }
 
-    .hidden {
+    /* 弹窗 */
+    .popup {
+        background: white;
+        border-radius: 12px;
+        width: 80%;
+        max-width: 420px;
+        padding: 25px;
+        text-align: center;
+        position: relative;
+        animation: fadeIn .2s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    /* 关闭按钮 */
+    .close-btn {
+        position: absolute;
+        right: 12px;
+        top: 10px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #666;
+    }
+
+    /* 绿色（找到价格） */
+    .popup.success {
+        border-top: 8px solid #28a745;
+    }
+
+    /* 红色（未找到价格） */
+    .popup.error {
+        border-top: 8px solid #e53935;
+    }
+
+    .price-box {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .price-box input {
+        flex: 1;
+        padding: 8px;
+        font-size: 16px;
+    }
+
+    .save-msg {
+        margin-top: 12px;
+        font-size: 16px;
+        color: #28a745;
         display: none;
     }
-
-    /* 弹窗 Toast */
-    .toast {
-        position: fixed;
-        bottom: 40px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 14px 22px;
-        color: white;
-        border-radius: 10px;
-        font-size: 16px;
-        opacity: 0;
-        transition: opacity .4s;
-        z-index: 999;
-    }
-
-    .toast.show {
-        opacity: 1;
-    }
-
-    .toast-green { background: #34c759; }
-    .toast-red   { background: #ff3b30; }
-
-    /* 历史列表 */
-    .history-item {
-        padding: 12px 12px;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        justify-content: space-between;
-        font-size: 16px;
-    }
-
 </style>
-</head>
 
+</head>
 <body>
 
-<h1>价格查询工具</h1>
+<h1>价格查询与管理工具</h1>
 
-<div class="card">
-    <label>请输入商品代码</label>
-    <input type="text" id="codeInput" placeholder="例如：A123 或条形码数字" />
-    <button onclick="searchCode()">查询</button>
+<div class="input-box">
+    <input id="codeInput" placeholder="输入商品代码">
+    <button onclick="searchPrice()">查询</button>
 </div>
 
-<div id="priceCard" class="card hidden">
-    <div style="margin-bottom:10px; font-size:17px;">
-        未找到此商品，请输入价格：
+<!-- 弹窗（查询结果） -->
+<div class="overlay" id="popupOverlay">
+    <div class="popup" id="popupBox">
+        <span class="close-btn" onclick="closePopup()">×</span>
+
+        <h2 id="popupTitle"></h2>
+        <p id="popupContent"></p>
+
+        <!-- 编辑价格区（仅已存在价格时显示） -->
+        <div class="price-box" id="editArea" style="display:none;">
+            <input id="editPrice" type="number" step="0.01" placeholder="输入新价格">
+            <button onclick="savePrice(true)">保存</button>
+        </div>
+
+        <!-- 新增保存成功提示 -->
+        <div class="save-msg" id="saveMsg">价格已保存！</div>
     </div>
-
-    <input type="number" step="0.01" id="priceInput" placeholder="请输入价格（保留两位小数）" />
-    <button onclick="savePrice()">保存价格</button>
 </div>
-
-<div class="card">
-    <h3 style="margin-top:0;">历史记录</h3>
-    <div id="historyList"></div>
-</div>
-
-<!-- 弹窗 -->
-<div id="toast" class="toast"></div>
 
 <script>
-    // 显示弹窗
-    function showToast(msg, type) {
-        const t = document.getElementById("toast");
-        t.innerText = msg;
-
-        t.className = "toast show " + (type === "green" ? "toast-green" : "toast-red");
-
-        setTimeout(() => {
-            t.classList.remove("show");
-        }, 1800);
+    function getData() {
+        return JSON.parse(localStorage.getItem("priceDB") || "{}");
     }
 
-    // 查询价格
-    function searchCode() {
-        const code = document.getElementById("codeInput").value.trim();
+    function saveData(db) {
+        localStorage.setItem("priceDB", JSON.stringify(db));
+    }
+
+    // 查询按钮
+    function searchPrice() {
+        let code = document.getElementById("codeInput").value.trim();
         if (!code) return;
 
-        const data = JSON.parse(localStorage.getItem("priceDB") || "{}");
+        let db = getData();
+        let price = db[code];
 
-        if (data[code]) {
-            // 找到价格 → 绿色弹窗
-            showToast(`已找到：￥${data[code]}`, "green");
-            document.getElementById("priceCard").classList.add("hidden");
+        const overlay = document.getElementById("popupOverlay");
+        const box = document.getElementById("popupBox");
+        const title = document.getElementById("popupTitle");
+        const content = document.getElementById("popupContent");
+        const editArea = document.getElementById("editArea");
+        const saveMsg = document.getElementById("saveMsg");
+
+        saveMsg.style.display = "none";
+
+        overlay.style.display = "flex";
+
+        if (price !== undefined) {
+            // 找到价格 → 绿色弹窗 + 编辑功能
+            box.className = "popup success";
+            title.textContent = "查询成功";
+            content.textContent = `商品代码：${code}\n当前价格：¥${price}`;
+            editArea.style.display = "flex";
+            document.getElementById("editPrice").value = price;
         } else {
-            // 未找到 → 红色弹窗
-            showToast("未找到，请录入价格", "red");
-
-            // 显示录入卡片
-            document.getElementById("priceCard").classList.remove("hidden");
-            document.getElementById("priceInput").value = "";
-            document.getElementById("priceInput").focus();
+            // 未找到 → 红色弹窗 + 新增录入界面
+            box.className = "popup error";
+            title.textContent = "未找到价格";
+            content.textContent = `商品代码：${code}\n请录入价格：`;
+            editArea.style.display = "flex";
+            document.getElementById("editPrice").value = "";
         }
     }
 
-    // 保存价格
-    function savePrice() {
-        const code = document.getElementById("codeInput").value.trim();
-        let price = document.getElementById("priceInput").value.trim();
+    // 保存按钮（新增/修改）
+    function savePrice(isEdit = false) {
+        let code = document.getElementById("codeInput").value.trim();
+        let newPrice = document.getElementById("editPrice").value.trim();
+        if (!newPrice) return;
 
-        if (!price) return;
+        let db = getData();
+        db[code] = parseFloat(newPrice).toFixed(2);
+        saveData(db);
 
-        // 保留两位小数
-        price = parseFloat(price).toFixed(2);
+        const saveMsg = document.getElementById("saveMsg");
+        saveMsg.style.display = "block";
 
-        const data = JSON.parse(localStorage.getItem("priceDB") || "{}");
-        data[code] = price;
-
-        localStorage.setItem("priceDB", JSON.stringify(data));
-
-        showToast("保存成功！", "green");
-
-        document.getElementById("priceCard").classList.add("hidden");
-
-        loadHistory();
+        // 保存后刷新弹窗内容
+        searchPrice();
     }
 
-    // 加载历史记录
-    function loadHistory() {
-        const list = document.getElementById("historyList");
-        list.innerHTML = "";
-
-        const data = JSON.parse(localStorage.getItem("priceDB") || "{}");
-        const entries = Object.entries(data);
-
-        entries.forEach(([code, price]) => {
-            const row = document.createElement("div");
-            row.className = "history-item";
-            row.innerHTML = `<span>${code}</span><strong>￥${price}</strong>`;
-            list.appendChild(row);
-        });
+    function closePopup() {
+        document.getElementById("popupOverlay").style.display = "none";
     }
-
-    loadHistory();
 </script>
 
 </body>
