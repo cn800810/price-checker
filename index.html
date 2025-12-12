@@ -1,227 +1,195 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>价格查询与管理工具</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格查询工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
 
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f4f4;
-        margin: 0;
-        padding: 20px;
-        text-align: center;
-    }
+        h1 {
+            margin-top: 50px;
+            font-size: 32px;
+            font-weight: bold;
+        }
 
-    h1 {
-        font-size: 26px;
-        margin-bottom: 30px;
-    }
+        .subtitle {
+            font-size: 15px;
+            margin-top: 5px;
+            color: #ff4444; /* 🔴 改成红色 */
+            font-weight: bold;
+        }
 
-    input {
-        padding: 12px;
-        width: 80%;
-        max-width: 350px;
-        font-size: 18px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-    }
+        .container {
+            margin-top: 40px;
+        }
 
-    button {
-        padding: 12px 28px;
-        font-size: 18px;
-        background-color: #1e90ff;
-        border: none;
-        border-radius: 6px;
-        color: #fff;
-        margin-left: 10px;
-    }
+        input {
+            width: 80%;
+            max-width: 350px;
+            padding: 14px;
+            font-size: 18px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+        }
 
-    /* ====== 模态弹窗背景 ====== */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 10;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.55);
-        justify-content: center;
-        align-items: center;
-    }
+        button {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 200px;
+            padding: 14px;
+            font-size: 20px;
+            background-color: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+        }
 
-    /* ====== 弹窗主体 ====== */
-    .modal-content {
-        background: white;
-        width: 90%;
-        max-width: 450px;
-        border-radius: 14px;
-        padding: 25px;
-        position: relative;
-        text-align: center;
-    }
+        /* 弹窗背景 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.55);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
 
-    /* 关闭按钮 */
-    .close {
-        position: absolute;
-        right: 18px;
-        top: 18px;
-        font-size: 26px;
-        cursor: pointer;
-    }
+        /* 弹窗主体 */
+        .modal {
+            background: #fff;
+            width: 90%;
+            max-width: 420px;
+            padding: 30px;
+            border-radius: 16px;
+            position: relative;
+            text-align: center;
+        }
 
-    /* 查询成功标题 */
-    .modal-title {
-        font-size: 28px;
-        font-weight: bold;
-        margin-bottom: 12px;
-    }
+        .modal h2 {
+            margin-top: 0;
+            font-size: 28px;
+        }
 
-    /* 商品代码 */
-    .code-text {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 18px;
+            font-size: 24px;
+            cursor: pointer;
+        }
 
-    /* 显示价格（绿色） */
-    .price-display {
-        font-size: 32px;
-        font-weight: bold;
-        color: green;
-        margin: 15px 0 25px 0;
-    }
+        .price-green {
+            font-size: 32px;
+            font-weight: bold;
+            color: green;
+            margin: 15px 0;
+        }
 
-    /* 输入框宽度 55% */
-    .modal-content input {
-        width: 55%;
-        margin: 0 auto;
-        display: block;
-        padding: 10px;
-        font-size: 18px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        box-sizing: border-box;
-    }
+        .edit-input {
+            width: 55%;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+            margin-top: 10px;
+        }
 
-    /* 保存按钮 */
-    .save-btn {
-        margin-top: 25px;
-        width: 80%;
-        max-width: 300px;
-        padding: 14px;
-        font-size: 20px;
-        border-radius: 10px;
-        background-color: #1e90ff;
-        color: #fff;
-        border: none;
-    }
-
-    /* 保存成功提示（绿色） */
-    .toast {
-        position: fixed;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #28a745;
-        color: white;
-        padding: 14px 28px;
-        border-radius: 8px;
-        display: none;
-        font-size: 18px;
-        z-index: 20;
-    }
-
-</style>
+        .save-btn {
+            margin-top: 20px;
+            width: 85%;
+            padding: 14px;
+            font-size: 20px;
+            background-color: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
 
-<h1>价格查询与管理工具</h1>
+    <h1>价格查询</h1>
+    <div class="subtitle">请输入后 5 位数</div>
 
-<input id="codeInput" type="text" placeholder="输入商品代码…" />
-<button onclick="searchPrice()">查询</button>
-
-<!-- 弹窗 -->
-<div class="modal" id="resultModal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">×</span>
-
-        <div class="modal-title" id="modalTitle">查询结果</div>
-        <div class="code-text" id="codeDisplay"></div>
-        <div class="price-display" id="priceDisplay"></div>
-
-        <input type="text" id="editPrice" placeholder="输入新价格…" />
-
-        <button class="save-btn" onclick="savePrice()">保存</button>
+    <div class="container">
+        <input type="text" id="codeInput" placeholder="输入商品代码..." maxlength="5">
+        <br>
+        <button onclick="searchPrice()">查询</button>
     </div>
-</div>
 
-<!-- 保存成功提示 -->
-<div class="toast" id="toast">保存成功</div>
+    <!-- 弹窗 -->
+    <div class="modal-overlay" id="modalBox">
+        <div class="modal">
+            <span class="modal-close" onclick="closeModal()">×</span>
+            <h2 id="modalTitle">结果</h2>
+            <div id="modalPrice" class="price-green"></div>
 
-<script>
-    // 假数据存储，用 localStorage 作为数据库
-    let priceData = JSON.parse(localStorage.getItem("priceDB") || "{}");
+            <input id="editPrice" class="edit-input" placeholder="修改价格">
+            <br>
+            <button class="save-btn" onclick="savePrice()">保存</button>
+        </div>
+    </div>
 
-    function showModal() {
-        document.getElementById("resultModal").style.display = "flex";
-    }
+    <script>
+        const priceDB = JSON.parse(localStorage.getItem("priceDB") || "{}");
 
-    function closeModal() {
-        document.getElementById("resultModal").style.display = "none";
-    }
+        function searchPrice() {
+            const code = document.getElementById("codeInput").value.trim();
+            if (code.length !== 5) {
+                alert("请输入 5 位商品代码");
+                return;
+            }
 
-    function showToast(msg) {
-        const toast = document.getElementById("toast");
-        toast.innerText = msg;
-        toast.style.display = "block";
-        setTimeout(() => toast.style.display = "none", 1800);
-    }
+            const modal = document.getElementById("modalBox");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalPrice = document.getElementById("modalPrice");
+            const editPrice = document.getElementById("editPrice");
 
-    // 价格查询功能
-    function searchPrice() {
-        const code = document.getElementById("codeInput").value.trim();
-        if (!code) return;
+            if (priceDB[code]) {
+                modalTitle.textContent = "查询成功";
+                modalPrice.textContent = "¥" + priceDB[code];
+                modalPrice.style.color = "green";
+                editPrice.value = priceDB[code];
+            } else {
+                modalTitle.textContent = "未找到价格";
+                modalPrice.textContent = "请录入价格";
+                modalPrice.style.color = "red";
+                editPrice.value = "";
+            }
 
-        const price = priceData[code];
-
-        document.getElementById("codeDisplay").innerText = "商品代码：" + code;
-
-        if (price !== undefined) {
-            // 查询成功
-            document.getElementById("modalTitle").innerText = "查询成功";
-            document.getElementById("modalTitle").style.color = "#000";
-            document.getElementById("priceDisplay").innerText = "¥" + price;
-            document.getElementById("editPrice").value = price;
-        } else {
-            // 没价格 → 红色提示
-            document.getElementById("modalTitle").innerText = "未找到价格，需新增";
-            document.getElementById("modalTitle").style.color = "red";
-            document.getElementById("priceDisplay").innerText = "";
-            document.getElementById("editPrice").value = "";
+            modal.style.display = "flex";
         }
 
-        showModal();
-    }
-
-    // 保存价格
-    function savePrice() {
-        const code = document.getElementById("codeInput").value.trim();
-        const newPrice = document.getElementById("editPrice").value.trim();
-
-        if (!newPrice || isNaN(newPrice)) {
-            alert("请输入正确的价格（数字）");
-            return;
+        function closeModal() {
+            document.getElementById("modalBox").style.display = "none";
         }
 
-        priceData[code] = parseFloat(newPrice).toFixed(2);
-        localStorage.setItem("priceDB", JSON.stringify(priceData));
+        function savePrice() {
+            const code = document.getElementById("codeInput").value.trim();
+            const newPrice = document.getElementById("editPrice").value.trim();
 
-        showToast("保存成功");
-        closeModal();
-    }
-</script>
+            if (!newPrice || isNaN(newPrice)) {
+                alert("请输入正确的价格！");
+                return;
+            }
+
+            priceDB[code] = parseFloat(newPrice).toFixed(2);
+            localStorage.setItem("priceDB", JSON.stringify(priceDB));
+            alert("保存成功！");
+            closeModal();
+        }
+    </script>
 
 </body>
 </html>
