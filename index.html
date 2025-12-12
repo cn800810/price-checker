@@ -1,117 +1,479 @@
-<!DOCTYPE html>
-<html lang="zh">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>价格查询</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>价格查询（带本地库）</title>
 
-<!-- 引入 ZXing 解码库 -->
-<script src="https://unpkg.com/@zxing/library@0.20.0"></script>
+  <!-- QuaggaJS 条码库（用于一维条码） -->
+  <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 
-<style>
-body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding: 20px;
-}
+  <style>
+    :root{
+      --bg: #ffffff;
+      --muted: #666;
+      --primary: #2b6ddb;
+      --accent: #e6eefc;
+      --card: #fafafa;
+    }
+    html,body{height:100%;}
+    body{
+      margin:0;
+      background:var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial;
+      color:#111;
+      padding:14px;
+    }
 
-button {
-    font-size: 18px;
-    padding: 12px 20px;
-    margin: 10px;
-}
+    h1{
+      text-align:center;
+      margin:6px 0 14px;
+      font-size:22px;
+    }
 
-#video {
-    width: 100%;
-    max-width: 350px;
-    border: 2px solid #333;
-    margin-top: 15px;
-}
+    .center{display:flex;justify-content:center;align-items:center;}
 
-#priceBox {
-    display: none;
-    margin-top: 20px;
-}
-</style>
+    button{
+      background:var(--primary);
+      color:#fff;
+      border:0;
+      padding:10px 16px;
+      border-radius:20px;
+      font-size:16px;
+    }
+    button.ghost{
+      background:transparent;
+      color:var(--primary);
+      border:1px solid var(--accent);
+    }
+    .controls{display:flex;gap:10px;justify-content:center;margin-bottom:12px;}
+    #video-wrap{
+      width:100%;
+      max-width:540px;
+      margin:0 auto;
+      border:1px solid #ccc;
+      height:380px;
+      background:#000;
+      position:relative;
+      box-sizing:border-box;
+    }
+    #camera-preview{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      transform:scaleX(-1); /* flip for front/back consistency — Quagga uses mirrored canvas */
+    }
+    .scan-frame{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:70%;
+      height:40%;
+      transform:translate(-50%,-50%);
+      border:2px dashed rgba(0,110,255,0.3);
+      border-radius:8px;
+      pointer-events:none;
+    }
+
+    #result-box{
+      margin-top:12px;
+      background:var(--card);
+      border-radius:8px;
+      padding:12px;
+      font-size:16px;
+      min-height:48px;
+      box-sizing:border-box;
+    }
+
+    .muted{color:var(--muted);}
+
+    .controls-row{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:10px;}
+    input[type="text"], input[type="file"]{
+      width:100%;
+      padding:10px;
+      border:1px solid #ddd;
+      border-radius:8px;
+      box-sizing:border-box;
+      font-size:16px;
+    }
+
+    .col{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .list{
+      margin-top:14px;
+      border-top:1px solid #eee;
+      padding-top:10px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:14px;
+    }
+    th,td{
+      padding:8px 6px;
+      border-bottom:1px solid #f0f0f0;
+      text-align:left;
+    }
+    .actions button{
+      margin-right:6px;
+      padding:6px 8px;
+      font-size:13px;
+      border-radius:6px;
+    }
+
+    .small{font-size:13px;color:var(--muted);}
+
+    .msg{
+      margin-top:8px;color:#0b6; font-weight:600;
+    }
+
+    .warning{color:#d9534f;}
+    .flex{display:flex;gap:8px;align-items:center;}
+    .searchbox{display:flex;gap:8px;margin-top:8px;}
+    .footer-note{font-size:12px;color:var(--muted);margin-top:8px;text-align:center;}
+  </style>
 </head>
-
 <body>
+  <h1>📱 商品价格查询工具</h1>
 
-<h2>📱 商品价格查询工具</h2>
+  <div class="controls center">
+    <button id="start-btn">开始扫码</button>
+    <button id="stop-btn" class="ghost">停止</button>
+    <button id="list-btn" class="ghost">历史</button>
+  </div>
 
-<button id="startScan">开始扫码</button>
+  <div id="video-wrap">
+    <!-- Quagga 将把视频渲染到这里 -->
+    <div id="camera-preview" style="width:100%;height:100%"></div>
+    <div class="scan-frame"></div>
+  </div>
 
-<video id="video" autoplay playsinline></video>
+  <div id="result-box" class="muted">尚未扫码</div>
 
-<h3 id="result">尚未扫码</h3>
+  <!-- 价格输入弹层（简单显示/隐藏） -->
+  <div id="price-input-box" style="display:none;margin-top:10px;">
+    <div style="display:flex;gap:8px">
+      <input id="price-input" type="text" placeholder="输入价格（元）" />
+      <button id="save-price-btn">保存价格</button>
+      <button id="cancel-price-btn" class="ghost">取消</button>
+    </div>
+  </div>
 
-<div id="priceBox">
-    <p>扫描结果： <b id="codeText"></b></p>
-    <p>价格： <input id="priceInput" type="number" placeholder="请输入价格"> 元</p>
-    <button id="savePrice">保存价格</button>
-</div>
+  <div class="searchbox">
+    <input id="search-input" placeholder="搜索条码或点击历史查看" />
+    <button id="clear-search" class="ghost">清除</button>
+    <button id="export-btn">导出 CSV</button>
+    <input id="import-file" type="file" accept=".csv" />
+    <button id="clear-db" class="ghost">清空本地库</button>
+  </div>
+
+  <div class="list" id="list-container" style="display:none;">
+    <table id="price-table">
+      <thead>
+        <tr><th>条码</th><th>价格（元）</th><th class="small">操作</th></tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="footer-note">
+    注意：iPhone Safari 必须通过 HTTPS（GitHub Pages）才能启用摄像头。若摄像头黑屏，请切换到光线充足环境并允许相机权限。
+  </div>
 
 <script>
-const codeReader = new ZXing.BrowserMultiFormatReader();
-let currentCode = "";
-let streamStarted = false;
-
-document.getElementById("startScan").addEventListener("click", async () => {
-    const video = document.getElementById("video");
-
-    if (!streamStarted) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" }
-            });
-            video.srcObject = stream;
-            streamStarted = true;
-        } catch (err) {
-            alert("无法打开摄像头：" + err);
-            return;
-        }
-    }
-
-    startDecoding();
-});
-
-function startDecoding() {
-    codeReader.decodeFromVideoDevice(null, "video", (result, err) => {
-        if (result) {
-            const code = result.text;
-            if (code !== currentCode) {
-                currentCode = code;
-                onCodeDetected(code);
-            }
-        }
-    });
+/* ========== 价格数据库（localStorage） ========== */
+const DB_KEY = 'priceDB_v1';
+let priceDB = {}; // { barcode: "12.50", ... }
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(DB_KEY);
+    if(raw) priceDB = JSON.parse(raw) || {};
+    else priceDB = {};
+  }catch(e){ priceDB = {}; }
+}
+function saveDB(){
+  localStorage.setItem(DB_KEY, JSON.stringify(priceDB));
 }
 
-function onCodeDetected(code) {
-    document.getElementById("result").innerText = "扫描成功：" + code;
+/* ========== UI 元素 ========== */
+const startBtn = document.getElementById('start-btn');
+const stopBtn = document.getElementById('stop-btn');
+const listBtn = document.getElementById('list-btn');
+const resultBox = document.getElementById('result-box');
+const videoWrap = document.getElementById('camera-preview');
+const priceInputBox = document.getElementById('price-input-box');
+const priceInput = document.getElementById('price-input');
+const savePriceBtn = document.getElementById('save-price-btn');
+const cancelPriceBtn = document.getElementById('cancel-price-btn');
 
-    document.getElementById("priceBox").style.display = "block";
-    document.getElementById("codeText").innerText = code;
+const listContainer = document.getElementById('list-container');
+const tableBody = document.getElementById('table-body');
+const searchInput = document.getElementById('search-input');
+const clearSearch = document.getElementById('clear-search');
+const exportBtn = document.getElementById('export-btn');
+const importFile = document.getElementById('import-file');
+const clearDbBtn = document.getElementById('clear-db');
 
-    // 读取本地价格
-    const savedPrice = localStorage.getItem("price_" + code);
-    document.getElementById("priceInput").value = savedPrice || "";
+/* ========== Quagga 扫描相关 ========== */
+let scanning = false;
+let lastDetected = null;
+
+function showResult(html){
+  resultBox.innerHTML = html;
+}
+function showTempMsg(msg, ms=1000){
+  resultBox.textContent = msg;
+  setTimeout(()=>{ resultBox.textContent = '尚未扫码'; }, ms);
 }
 
-// 保存价格
-document.getElementById("savePrice").addEventListener("click", () => {
-    if (!currentCode) return;
+/* 初始化 Quagga 并开始摄像头 */
+function startScan(){
+  if(scanning) return;
+  // Quagga 配置
+  const config = {
+    inputStream: {
+      type: "LiveStream",
+      target: videoWrap, // DOM element
+      constraints: {
+        facingMode: "environment",
+        width: { min: 320, ideal: 1280 },
+        height: { min: 240, ideal: 720 },
+      }
+    },
+    locator: {
+      halfSample: true,
+      patchSize: "medium"
+    },
+    numOfWorkers: navigator.hardwareConcurrency ? Math.max(1, navigator.hardwareConcurrency -1) : 2,
+    decoder: {
+      readers: [
+        "ean_reader",
+        "ean_8_reader",
+        "upc_reader",
+        "upc_e_reader",
+        "code_128_reader",
+        "code_39_reader",
+        "code_93_reader"
+      ]
+    },
+    locate: true
+  };
 
-    const price = document.getElementById("priceInput").value.trim();
-    if (!price) {
-        alert("请输入价格！");
-        return;
+  // 如果 Quagga 已经在运行，先停止
+  try { Quagga.stop(); } catch(e){}
+
+  Quagga.init(config, function(err){
+    if(err){
+      console.error('Quagga init error', err);
+      showResult('摄像头或权限问题：' + (err.name||err.message));
+      return;
     }
+    Quagga.start();
+    scanning = true;
+    showTempMsg('正在识别中...');
+    // 绑定检测回调
+    Quagga.offDetected(onDetected);
+    Quagga.onDetected(onDetected);
+  });
+}
 
-    localStorage.setItem("price_" + currentCode, price);
-    alert("价格已保存！");
-});
+/* 停止扫描 */
+function stopScan(){
+  try{
+    Quagga.stop();
+  }catch(e){}
+  scanning = false;
+  showTempMsg('已停止扫描', 1000);
+}
+
+/* 条码被检测到时 */
+function onDetected(data){
+  if(!data || !data.codeResult) return;
+  const code = data.codeResult.code;
+  if(!code) return;
+
+  // 防止短时间内重复触发
+  if(lastDetected === code) return;
+  lastDetected = code;
+  setTimeout(()=> lastDetected = null, 1200);
+
+  // 显示
+  if(priceDB[code] !== undefined){
+    showResult(`条码: <b>${escapeHtml(code)}</b><br>价格: <b>¥${priceDB[code]}</b>`);
+    // 自动停止扫描一次（可选），若想持续扫描请注释下面一行
+    // stopScan();
+  } else {
+    showResult(`条码: <b>${escapeHtml(code)}</b><br><span class="small muted">无价格</span>`);
+    // 显示输入框
+    priceInputBox.style.display = 'block';
+    priceInput.value = '';
+    priceInput.dataset.last = code;
+    setTimeout(()=> priceInput.focus(), 200);
+  }
+}
+
+/* 保存价格 */
+savePriceBtn.onclick = ()=>{
+  const code = priceInput.dataset.last;
+  if(!code){ alert('未检测到条码'); return; }
+  const price = priceInput.value.trim();
+  if(price === '' || isNaN(Number(price))){
+    alert('请输入有效数字价格（例如 12.50）');
+    return;
+  }
+  priceDB[code] = Number(price).toFixed(2);
+  saveDB();
+  priceInputBox.style.display = 'none';
+  showResult(`条码: <b>${escapeHtml(code)}</b><br>价格: <b>¥${priceDB[code]}</b>`);
+  renderList();
+};
+
+/* 取消输入 */
+cancelPriceBtn.onclick = ()=>{
+  priceInputBox.style.display = 'none';
+  showTempMsg('已取消', 800);
+};
+
+/* list / table 渲染 */
+function renderList(filter=''){
+  loadDB();
+  tableBody.innerHTML = '';
+  const keys = Object.keys(priceDB).sort();
+  const f = (filter||'').trim();
+  keys.forEach(k=>{
+    if(f){
+      const low = f.toLowerCase();
+      if(!k.toLowerCase().includes(low) && !priceDB[k].toLowerCase?.includes(low) && !String(priceDB[k]).includes(low)) return;
+    }
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = k;
+    const td2 = document.createElement('td'); td2.textContent = priceDB[k];
+    const td3 = document.createElement('td');
+    td3.className = 'actions';
+    const editBtn = document.createElement('button'); editBtn.textContent = '改价';
+    editBtn.onclick = ()=> {
+      const newp = prompt('修改价格（元）', priceDB[k]);
+      if(newp === null) return;
+      if(newp === '' || isNaN(Number(newp))){ alert('无效价格'); return; }
+      priceDB[k] = Number(newp).toFixed(2);
+      saveDB(); renderList(filter);
+    };
+    const delBtn = document.createElement('button'); delBtn.textContent = '删除';
+    delBtn.onclick = ()=> {
+      if(!confirm('确认删除条码 ' + k + ' 的价格？')) return;
+      delete priceDB[k];
+      saveDB(); renderList(filter);
+    };
+    td3.appendChild(editBtn); td3.appendChild(delBtn);
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+    tableBody.appendChild(tr);
+  });
+}
+
+/* 导出 CSV */
+exportBtn.onclick = ()=>{
+  loadDB();
+  const keys = Object.keys(priceDB).sort();
+  let csv = 'barcode,price\r\n';
+  keys.forEach(k=>{
+    csv += `${k},${priceDB[k]}\r\n`;
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'prices.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+};
+
+/* 导入 CSV（简单解析） */
+importFile.onchange = (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const text = evt.target.result;
+      const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+      // skip header if present
+      const start = (lines[0]||'').toLowerCase().includes('barcode') ? 1 : 0;
+      for(let i=start;i<lines.length;i++){
+        const parts = lines[i].split(',');
+        if(parts.length < 2) continue;
+        const code = parts[0].trim();
+        let price = parts[1].trim();
+        if(price==='') continue;
+        if(isNaN(Number(price))) continue;
+        priceDB[code] = Number(price).toFixed(2);
+      }
+      saveDB();
+      renderList(searchInput.value);
+      showTempMsg('导入完成',1000);
+    }catch(err){
+      alert('导入失败：'+err.message);
+    }
+  };
+  reader.readAsText(f,'utf-8');
+  importFile.value = '';
+};
+
+/* 清空 DB */
+clearDbBtn.onclick = ()=>{
+  if(!confirm('确认清空本地所有价格？此操作不可恢复')) return;
+  priceDB = {};
+  saveDB();
+  renderList();
+  showTempMsg('已清空',1000);
+};
+
+/* 搜索 */
+clearSearch.onclick = ()=>{ searchInput.value=''; renderList(); };
+searchInput.addEventListener('input',(e)=> renderList(e.target.value.trim()));
+
+/* 切换历史显示 */
+listBtn.onclick = ()=>{
+  if(listContainer.style.display === 'none'){
+    listContainer.style.display = 'block';
+    renderList(searchInput.value.trim());
+  } else {
+    listContainer.style.display = 'none';
+  }
+};
+
+/* start/stop 按钮绑定 */
+startBtn.onclick = ()=> {
+  // 请求摄像头权限并启动
+  startScan();
+};
+stopBtn.onclick = ()=> stopScan();
+
+/* 页面初始化 */
+(function init(){
+  loadDB();
+  renderList();
+  // 初始状态：stop按钮可用性由 scanning 控制（这里只提示）
+  showResult('尚未扫码');
+})();
+
+/* 辅助函数 */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+/* ===== 注意事项 / 调试建议 =====
+1) iPhone Safari 必须通过 HTTPS（GitHub Pages）才能使用摄像头。
+2) 若摄像头黑屏或识别率低，尝试：
+   - 切换到光线充足处
+   - 保持条码平整、对焦距离约 10-20cm（视摄像头）
+   - 慢慢移动使条码进扫描框
+3) Quagga 对一维条码支持较好（EAN/UPC/Code128），若极端模糊可能识别失败。
+4) 若需要持续自动识别并自动保存（连续模式），可修改 onDetected 内逻辑，不自动 stopScan。
+============================== */
+
 </script>
-
 </body>
 </html>
