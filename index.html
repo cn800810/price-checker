@@ -1,66 +1,197 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商品价格查询工具（简易版）</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 30px;
-        }
-        input, button {
-            font-size: 20px;
-            padding: 10px;
-            margin-top: 10px;
-        }
-        #result {
-            margin-top: 20px;
-            font-size: 22px;
-            font-weight: bold;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>价格查询工具</title>
+
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+        background: #f5f7fa;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 25px;
+        color: #333;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    input {
+        width: 100%;
+        padding: 14px;
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        font-size: 17px;
+        margin-top: 8px;
+        margin-bottom: 12px;
+    }
+
+    button {
+        width: 100%;
+        padding: 14px;
+        background: #007aff;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    button:active {
+        opacity: 0.7;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    /* 弹窗 Toast */
+    .toast {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 14px 22px;
+        color: white;
+        border-radius: 10px;
+        font-size: 16px;
+        opacity: 0;
+        transition: opacity .4s;
+        z-index: 999;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+
+    .toast-green { background: #34c759; }
+    .toast-red   { background: #ff3b30; }
+
+    /* 历史列表 */
+    .history-item {
+        padding: 12px 12px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        font-size: 16px;
+    }
+
+</style>
 </head>
+
 <body>
 
-    <h2>商品价格查询工具（简易功能测试版）</h2>
+<h1>价格查询工具</h1>
 
-    <label>输入商品码：</label><br>
-    <input id="codeInput" type="text" placeholder="例如：6902021001018"><br>
+<div class="card">
+    <label>请输入商品代码</label>
+    <input type="text" id="codeInput" placeholder="例如：A123 或条形码数字" />
+    <button onclick="searchCode()">查询</button>
+</div>
 
-    <button onclick="checkPrice()">查询</button>
+<div id="priceCard" class="card hidden">
+    <div style="margin-bottom:10px; font-size:17px;">
+        未找到此商品，请输入价格：
+    </div>
 
-    <div id="result"></div>
+    <input type="number" step="0.01" id="priceInput" placeholder="请输入价格（保留两位小数）" />
+    <button onclick="savePrice()">保存价格</button>
+</div>
 
-    <script>
-        function checkPrice() {
-            const code = document.getElementById('codeInput').value.trim();
-            const resultDiv = document.getElementById('result');
+<div class="card">
+    <h3 style="margin-top:0;">历史记录</h3>
+    <div id="historyList"></div>
+</div>
 
-            if (!code) {
-                resultDiv.innerHTML = "❗请输入商品码";
-                return;
-            }
+<!-- 弹窗 -->
+<div id="toast" class="toast"></div>
 
-            // 获取 localStorage 数据
-            const saved = localStorage.getItem("price_" + code);
+<script>
+    // 显示弹窗
+    function showToast(msg, type) {
+        const t = document.getElementById("toast");
+        t.innerText = msg;
 
-            if (saved) {
-                // 已有价格，直接显示
-                resultDiv.innerHTML = `已找到：商品码 <b>${code}</b><br>价格：<b>${saved}</b>`;
-            } else {
-                // 未找到价格，提示输入
-                const price = prompt("未找到价格，请输入价格：");
+        t.className = "toast show " + (type === "green" ? "toast-green" : "toast-red");
 
-                if (price !== null && price.trim() !== "") {
-                    localStorage.setItem("price_" + code, price);
-                    resultDiv.innerHTML = `已保存：商品码 <b>${code}</b><br>价格：<b>${price}</b>`;
-                } else {
-                    resultDiv.innerHTML = "未保存，因为没有输入价格。";
-                }
-            }
+        setTimeout(() => {
+            t.classList.remove("show");
+        }, 1800);
+    }
+
+    // 查询价格
+    function searchCode() {
+        const code = document.getElementById("codeInput").value.trim();
+        if (!code) return;
+
+        const data = JSON.parse(localStorage.getItem("priceDB") || "{}");
+
+        if (data[code]) {
+            // 找到价格 → 绿色弹窗
+            showToast(`已找到：￥${data[code]}`, "green");
+            document.getElementById("priceCard").classList.add("hidden");
+        } else {
+            // 未找到 → 红色弹窗
+            showToast("未找到，请录入价格", "red");
+
+            // 显示录入卡片
+            document.getElementById("priceCard").classList.remove("hidden");
+            document.getElementById("priceInput").value = "";
+            document.getElementById("priceInput").focus();
         }
-    </script>
+    }
+
+    // 保存价格
+    function savePrice() {
+        const code = document.getElementById("codeInput").value.trim();
+        let price = document.getElementById("priceInput").value.trim();
+
+        if (!price) return;
+
+        // 保留两位小数
+        price = parseFloat(price).toFixed(2);
+
+        const data = JSON.parse(localStorage.getItem("priceDB") || "{}");
+        data[code] = price;
+
+        localStorage.setItem("priceDB", JSON.stringify(data));
+
+        showToast("保存成功！", "green");
+
+        document.getElementById("priceCard").classList.add("hidden");
+
+        loadHistory();
+    }
+
+    // 加载历史记录
+    function loadHistory() {
+        const list = document.getElementById("historyList");
+        list.innerHTML = "";
+
+        const data = JSON.parse(localStorage.getItem("priceDB") || "{}");
+        const entries = Object.entries(data);
+
+        entries.forEach(([code, price]) => {
+            const row = document.createElement("div");
+            row.className = "history-item";
+            row.innerHTML = `<span>${code}</span><strong>￥${price}</strong>`;
+            list.appendChild(row);
+        });
+    }
+
+    loadHistory();
+</script>
 
 </body>
 </html>
