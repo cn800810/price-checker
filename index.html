@@ -127,7 +127,7 @@ button {
     <div id="modalCode"></div>
     <div id="modalPrice"></div>
 
-    <input id="priceInput" type="number" placeholder="输入价格" style="display:none;">
+    <input id="priceInput" type="number" placeholder="输入价格" style="display:none;" />
 
     <button id="saveBtn" onclick="save()" style="display:none;">保存</button>
     <button class="close-btn" onclick="closeModal()">关闭</button>
@@ -216,10 +216,7 @@ function toggleList(){
 }
 
 async function loadList(){
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .order("created_at",{ascending:false});
+  const { data } = await supabase.from("products").select("*").order("created_at",{ascending:false});
 
   list.innerHTML="";
   data.forEach(p=>{
@@ -262,6 +259,13 @@ async function del(code){
     loadList();
   }
 }
+
+/* ===== 自动保存功能：按下“换行”（Enter键）时触发保存 ===== */
+priceInput.addEventListener("keydown", function(event){
+  if(event.key === "Enter"){  // 判断按下的是“Enter”键
+    save();  // 直接触发保存
+  }
+});
 </script>
 
 </body>
