@@ -4,109 +4,86 @@
   <meta charset="UTF-8" />
   <title>商品价格查询</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ✅ 正确加载 Supabase 官方库（关键） -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 520px; margin: auto; }
-    input, button { width: 100%; padding: 10px; margin-top: 10px; }
-    img { max-width: 100%; margin-top: 10px; }
-    .item { border: 1px solid #ddd; padding: 10px; margin-top: 10px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica;
+      background: #fff;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 22px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    button {
+      background: #007aff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+    .product {
+      margin-top: 20px;
+      border-top: 1px solid #eee;
+      padding-top: 15px;
+    }
+    img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
   </style>
 </head>
+
 <body>
+  <h1>商品价格查询</h1>
 
-<h2>商品价格查询</h2>
+  <input id="codeInput" placeholder="输入商品编码" />
+  <button onclick="queryProduct()">查询</button>
 
-<input id="codeInput" placeholder="输入商品编码" />
-<button onclick="search()">查询</button>
+  <div id="result"></div>
 
-<div id="result"></div>
+  <script>
+    /* ⬇️⬇️⬇️ 只改这里 ⬇️⬇️⬇️ */
+    const SUPABASE_URL = "https://ikdxkrmpuyvkoifmfzcu.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn";
 
-<hr />
-<h3>商品目录</h3>
-<div id="list"></div>
+    const supabase = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
 
-<script>
-const supabase = supabase.createClient(
-  "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
-  "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
-);
+    async function queryProduct() {
+      const code = document.getElementById("codeInput").value.trim();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "查询中...";
 
-async function search() {
-  const code = document.getElementById("codeInput").value.trim();
-  if (!code) return;
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("code", code)
+        .single();
 
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("code", code)
-    .single();
+      if (error || !data) {
+        resultDiv.innerHTML = "❌ 未找到该商品，可录入";
+        return;
+      }
 
-  if (!data) {
-    showForm(code);
-  } else {
-    showItem(data);
-  }
-}
-
-function showForm(code, item = {}) {
-  document.getElementById("result").innerHTML = `
-    <h3>${item.id ? "修改商品" : "录入商品"}</h3>
-    <input id="name" placeholder="商品名" value="${item.name || ""}">
-    <input id="price" placeholder="价格" value="${item.price || ""}">
-    <input id="image" placeholder="图片URL" value="${item.image_url || ""}">
-    <button onclick="${item.id ? `update('${item.id}')` : `save('${code}')`}">保存</button>
-  `;
-}
-
-function showItem(item) {
-  document.getElementById("result").innerHTML = `
-    <div class="item">
-      <b>${item.name}</b><br>
-      编码：${item.code}<br>
-      价格：¥${item.price}<br>
-      ${item.image_url ? `<img src="${item.image_url}">` : ""}
-      <button onclick='showForm("${item.code}", ${JSON.stringify(item)})'>修改</button>
-      <button onclick='remove("${item.id}")'>删除</button>
-    </div>
-  `;
-}
-
-async function save(code) {
-  await supabase.from("products").insert({
-    code,
-    name: name.value,
-    price: price.value,
-    image_url: image.value
-  });
-  location.reload();
-}
-
-async function update(id) {
-  await supabase.from("products").update({
-    name: name.value,
-    price: price.value,
-    image_url: image.value
-  }).eq("id", id);
-  location.reload();
-}
-
-async function remove(id) {
-  if (!confirm("确定删除？")) return;
-  await supabase.from("products").delete().eq("id", id);
-  location.reload();
-}
-
-async function loadList() {
-  const { data } = await supabase.from("products").select("*").order("created_at");
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-  data.forEach(item => {
-    list.innerHTML += `<div>${item.code} - ${item.name} - ¥${item.price}</div>`;
-  });
-}
-
-loadList();
-</script>
-
+      resultDiv.innerHTML = `
+        <div class="product">
+          <div>商品编码：${data.code}</div>
+          <div style="font-size:22px;color:green;">¥${data.price}</div>
+          ${data.image_url ? `< img src="${data.image_url}" />` : ""}
+        </div>
+      `;
+    }
+  </script>
 </body>
 </html>
