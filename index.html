@@ -3,28 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <title>商品价格查询</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-      background: #f6f7f9;
-      margin: 0;
-      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
     }
-    h1 {
-      text-align: center;
-    }
-    .box {
+    .card {
       max-width: 420px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 16px;
+      margin: 30px auto;
+      background: white;
+      padding: 20px;
       border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
     }
     input, button {
       width: 100%;
@@ -33,16 +24,26 @@
       font-size: 16px;
     }
     button {
-      background: #1677ff;
-      color: #fff;
+      background: #2563eb;
+      color: white;
       border: none;
       border-radius: 6px;
     }
-    .result {
-      margin-top: 15px;
+    .danger {
+      background: #dc2626;
+      margin-top: 6px;
     }
-    .product {
-      border-top: 1px solid #eee;
+    .toggle {
+      margin-top: 20px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .list {
+      display: none;
+      margin-top: 10px;
+    }
+    .item {
+      border-top: 1px solid #ddd;
       padding: 10px 0;
     }
     img {
@@ -50,103 +51,86 @@
       border-radius: 6px;
       margin-top: 6px;
     }
-    .actions button {
-      margin-top: 6px;
-      background: #999;
-    }
   </style>
 </head>
+
 <body>
+  <div class="card">
+    <h2>商品价格查询</h2>
 
-<h1>商品价格查询</h1>
+    <input id="codeInput" placeholder="输入商品编码" />
+    <button onclick="query()">查询</button>
 
-<div class="box">
-  <input id="codeInput" placeholder="输入商品编码" />
-  <button onclick="queryProduct()">查询</button>
-
-  <div id="result" class="result"></div>
-
-  <h3>商品目录</h3>
-  <div id="list"></div>
-</div>
+    <div class="toggle" onclick="toggleList()">📂 商品目录（点击展开 / 收起）</div>
+    <div id="list" class="list"></div>
+  </div>
 
 <script>
-  // ✅ Supabase 初始化（已修复报错）
-  const supabaseClient = window.supabase.createClient(
-    "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
-    "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
-  );
+const supabase = window.supabase.createClient(
+  "你的 SUPABASE_URL",
+  "你的 SUPABASE_ANON_KEY"
+);
 
-  async function queryProduct() {
-    const code = document.getElementById("codeInput").value.trim();
-    if (!code) return;
+async function query() {
+  const code = document.getElementById("codeInput").value.trim();
+  if (!code) return alert("请输入编码");
 
-    const { data } = await supabaseClient
-      .from("products")
-      .select("*")
-      .eq("code", code)
-      .single();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("code", code)
+    .single();
 
-    const result = document.getElementById("result");
+  if (!data) {
+    const price = prompt("未找到，输入价格");
+    if (price === null) return;
 
-    if (!data) {
-      result.innerHTML = `
-        <p>未找到，录入新商品：</p >
-        <input id="name" placeholder="商品名" />
-        <input id="price" placeholder="价格" />
-        <input id="img" placeholder="图片URL（可选）" />
-        <button onclick="addProduct('${code}')">保存</button>
-      `;
-    } else {
-      result.innerHTML = renderProduct(data);
-    }
-  }
-
-  async function addProduct(code) {
-    const name = document.getElementById("name").value;
-    const price = document.getElementById("price").value;
-    const image_url = document.getElementById("img").value;
-
-    await supabaseClient.from("products").insert({
-      code, name, price, image_url
+    await supabase.from("products").insert({
+      code,
+      price
     });
-
-    queryProduct();
+    alert("已录入");
     loadList();
+  } else {
+    alert(
+      `编码：${data.code}\n价格：￥${data.price ?? "未设置"}`
+    );
   }
+}
 
-  async function deleteProduct(id) {
-    await supabaseClient.from("products").delete().eq("id", id);
-    document.getElementById("result").innerHTML = "";
-    loadList();
-  }
+async function loadList() {
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  function renderProduct(p) {
-    return `
-      <div class="product">
-        <div>编码：${p.code}</div>
-        <div>名称：${p.name}</div>
-        <div style="color:green;font-size:20px">¥ ${p.price}</div>
-        ${p.image_url ? `< img src="${p.image_url}">` : ""}
-        <div class="actions">
-          <button onclick="deleteProduct(${p.id})">删除</button>
-        </div>
-      </div>
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  data.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div>编码：${p.code}</div>
+      <div>￥${p.price ?? "null"}</div>
+      <button class="danger" onclick="remove(${p.id})">删除</button>
     `;
-  }
+    list.appendChild(div);
+  });
+}
 
-  async function loadList() {
-    const { data } = await supabaseClient
-      .from("products")
-      .select("*")
-      .order("id", { ascending: false });
-
-    document.getElementById("list").innerHTML =
-      data.map(renderProduct).join("");
-  }
-
+async function remove(id) {
+  if (!confirm("确认删除？")) return;
+  await supabase.from("products").delete().eq("id", id);
   loadList();
-</script>
+}
 
+function toggleList() {
+  const list = document.getElementById("list");
+  list.style.display = list.style.display === "none" ? "block" : "none";
+}
+
+loadList();
+</script>
 </body>
 </html>
