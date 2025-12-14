@@ -41,6 +41,40 @@ button {
   margin-top: 20px;
 }
 
+/* ===== 折叠目录 ===== */
+.folder {
+  width: 90%;
+  max-width: 500px;
+  margin: 20px auto;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.folder-title {
+  padding: 14px;
+  font-size: 16px;
+  font-weight: bold;
+  background: #eee;
+  cursor: pointer;
+  text-align: center;
+}
+.folder-content {
+  display: none;
+}
+.record {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-top: 1px solid #eee;
+}
+.record button {
+  width: auto;
+  padding: 6px 14px;
+  font-size: 14px;
+  border-radius: 6px;
+}
+
 /* ===== 弹窗 ===== */
 .modal {
   display: none;
@@ -55,14 +89,10 @@ button {
   margin: 80px auto;
   padding: 20px;
   border-radius: 12px;
-  text-align: center; /* ⭐ 全部居中 */
+  text-align: center;
 }
 .modal-content h3 {
   margin-bottom: 20px;
-}
-.modal-content label {
-  display: block;
-  margin-bottom: 6px;
 }
 .actions {
   display: flex;
@@ -89,14 +119,20 @@ button {
 
 <div id="msg" class="error"></div>
 
+<!-- 已保存记录（折叠） -->
+<div class="folder">
+  <div class="folder-title" onclick="toggleFolder()">
+    📂 已保存记录
+  </div>
+  <div class="folder-content" id="recordList"></div>
+</div>
+
 <!-- 弹窗 -->
 <div class="modal" id="modal">
   <div class="modal-content">
-    <!-- ⭐ 这里只显示代码 -->
     <h3 id="modalTitle"></h3>
 
-    <label>价格</label>
-    <input id="priceInput" type="number" step="0.01"/>
+    <input id="priceInput" type="number" step="0.01" placeholder="输入价格"/>
 
     <div class="actions">
       <button onclick="save()">保存</button>
@@ -106,7 +142,7 @@ button {
 </div>
 
 <script>
-/* ========= Supabase 初始化 ========= */
+/* ========= Supabase ========= */
 const supabase = window.supabase.createClient(
   "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
   "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
@@ -114,27 +150,16 @@ const supabase = window.supabase.createClient(
 
 let currentProduct = null;
 
-/* ========= 查询（一定弹窗） ========= */
+/* ========= 查询 ========= */
 async function search() {
-  const msg = document.getElementById("msg");
-  msg.textContent = "";
-
   const code = document.getElementById("codeInput").value.trim();
-  if (!code) {
-    alert("请输入商品代码");
-    return;
-  }
+  if (!code) return alert("请输入商品代码");
 
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("products")
     .select("*")
     .eq("code", code)
     .maybeSingle();
-
-  if (error) {
-    msg.textContent = "查询失败，请检查 Supabase RLS 策略";
-    return;
-  }
 
   currentProduct = data ?? { code };
   openModal(code, data);
@@ -143,12 +168,26 @@ async function search() {
 /* ========= 打开弹窗 ========= */
 function openModal(code, data) {
   document.getElementById("modal").style.display = "block";
-
-  // ⭐ 只显示代码
   document.getElementById("modalTitle").textContent = code;
+  document.getElementById("priceInput").value = data?.price ?? "";
+}
 
-  document.getElementById("priceInput").value =
-    data?.price ?? "";
+/* ========= 保存 ========= */
+async function save() {
+  const price = document.getElementById("priceInput").value;
+  if (price === "") return alert("请输入价格");
+
+  if (currentProduct.id) {
+    await supabase.from("products")
+      .update({ price })
+      .eq("id", currentProduct.id);
+  } else {
+    await supabase.from("products")
+      .insert({ code: currentProduct.code, price });
+  }
+
+  closeModal();
+  loadRecords();
 }
 
 /* ========= 关闭弹窗 ========= */
@@ -157,29 +196,45 @@ function closeModal() {
   document.getElementById("codeInput").value = "";
 }
 
-/* ========= 保存 ========= */
-async function save() {
-  const price = document.getElementById("priceInput").value;
+/* ========= 折叠 ========= */
+function toggleFolder() {
+  const el = document.getElementById("recordList");
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
 
-  if (price === "") {
-    alert("请输入价格");
+/* ========= 加载记录 ========= */
+async function loadRecords() {
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const list = document.getElementById("recordList");
+  list.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    list.innerHTML = "<div class='record'>暂无记录</div>";
     return;
   }
 
-  if (currentProduct.id) {
-    await supabase
-      .from("products")
-      .update({ price })
-      .eq("id", currentProduct.id);
-  } else {
-    await supabase
-      .from("products")
-      .insert({ code: currentProduct.code, price });
-  }
-
-  closeModal();
-  alert("保存成功");
+  data.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "record";
+    div.innerHTML = `
+      <div>${p.code}</div>
+      <button onclick='edit(${JSON.stringify(p)})'>修改</button>
+    `;
+    list.appendChild(div);
+  });
 }
+
+/* ========= 修改 ========= */
+function edit(p) {
+  currentProduct = p;
+  openModal(p.code, p);
+}
+
+loadRecords();
 </script>
 
 </body>
