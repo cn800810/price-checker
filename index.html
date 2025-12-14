@@ -68,11 +68,18 @@ button {
   padding: 12px;
   border-top: 1px solid #eee;
 }
-.record button {
+.record-actions {
+  display: flex;
+  gap: 6px;
+}
+.record-actions button {
   width: auto;
-  padding: 6px 14px;
+  padding: 6px 12px;
   font-size: 14px;
   border-radius: 6px;
+}
+.delete-btn {
+  background: #e5533d;
 }
 
 /* ===== 弹窗 ===== */
@@ -119,7 +126,7 @@ button {
 
 <div id="msg" class="error"></div>
 
-<!-- 已保存记录（折叠） -->
+<!-- 已保存记录 -->
 <div class="folder">
   <div class="folder-title" onclick="toggleFolder()">
     📂 已保存记录
@@ -190,6 +197,18 @@ async function save() {
   loadRecords();
 }
 
+/* ========= 删除 ========= */
+async function removeProduct(p) {
+  if (!confirm(`确认删除商品 ${p.code} 吗？`)) return;
+
+  await supabase
+    .from("products")
+    .delete()
+    .eq("id", p.id);
+
+  loadRecords();
+}
+
 /* ========= 关闭弹窗 ========= */
 function closeModal() {
   document.getElementById("modal").style.display = "none";
@@ -222,7 +241,10 @@ async function loadRecords() {
     div.className = "record";
     div.innerHTML = `
       <div>${p.code}</div>
-      <button onclick='edit(${JSON.stringify(p)})'>修改</button>
+      <div class="record-actions">
+        <button onclick='edit(${JSON.stringify(p)})'>修改</button>
+        <button class="delete-btn" onclick='removeProduct(${JSON.stringify(p)})'>删除</button>
+      </div>
     `;
     list.appendChild(div);
   });
