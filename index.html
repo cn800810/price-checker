@@ -1,135 +1,197 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>价格查询（共享版）</title>
+  <meta charset="UTF-8" />
+  <title>Price Checker（共享版）</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    input, button {
+      padding: 8px;
+      margin: 4px 0;
+    }
 
-<style>
-body { font-family: Arial; background:#f5f5f5; margin:0 }
-h2{text-align:center;margin-top:20px}
-.input-box{width:90%;margin:10px auto;display:flex;flex-direction:column}
-input,button{padding:12px;font-size:18px;border-radius:8px}
-button{margin-top:10px;background:#2d89ef;color:#fff;border:none}
-#openListBtn{background:#444}
-.drawer{position:fixed;top:0;right:-100%;width:80%;max-width:380px;height:100%;background:#fff;transition:.3s;z-index:10}
-.drawer.open{right:0}
-.drawer-header{background:#333;color:#fff;padding:14px;display:flex;justify-content:space-between}
-.list-area{padding:10px;overflow-y:auto;height:calc(100% - 120px)}
-.item{display:flex;align-items:center;border-bottom:1px solid #eee;padding:10px}
-.thumb{width:55px;height:55px;background:#ddd;margin-right:10px;object-fit:cover}
-.overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);justify-content:center;align-items:center}
-.modal{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:420px;position:relative}
-.close-btn{position:absolute;right:10px;top:10px}
-#modalImage{max-width:260px;display:none;margin:10px auto}
-#modalPrice{font-size:30px;color:green}
-</style>
+    button {
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 20px;
+    }
+
+    /* 弹窗 */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    #modal {
+      background: #fff;
+      padding: 20px;
+      width: 300px;
+      border-radius: 8px;
+    }
+
+    #modal img {
+      max-width: 100%;
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
 </head>
-
 <body>
 
-<h2>价格查询（多人共享）</h2>
+<h2>价格查询（Supabase 共享）</h2>
 
-<div class="input-box">
-  <input id="codeInput" placeholder="输入商品代码" />
-  <button onclick="doSearch()">查询</button>
-  <button id="openListBtn">商品列表</button>
-</div>
+<input id="codeInput" placeholder="输入商品编号" />
+<br>
+<button id="searchBtn">查询</button>
 
-<div id="drawer" class="drawer">
-  <div class="drawer-header">
-    <span>商品列表</span>
-    <span onclick="drawer.classList.remove('open')">关闭</span>
-  </div>
-  <div class="list-area" id="listArea"></div>
-</div>
+<div id="result"></div>
 
-<div id="overlay" class="overlay">
-  <div class="modal">
-    <button class="close-btn" onclick="overlay.style.display='none'">X</button>
+<!-- 弹窗 -->
+<div id="overlay">
+  <div id="modal">
     <h3 id="modalCode"></h3>
-    < img id="modalImage">
-    <div id="modalPrice"></div>
-    <input id="priceInput" placeholder="输入价格">
-    <button onclick="savePrice()">保存</button>
+    <p id="modalPrice"></p >
+
+    <input id="priceInput" placeholder="输入价格" />
+    <input id="imageInput" placeholder="图片 URL（可选）" />
+
+    < img id="modalImage" />
+
+    <br><br>
+    <button id="saveBtn">保存</button>
+    <button id="closeBtn">关闭</button>
   </div>
 </div>
 
-<script>
-/* ===== Supabase 配置 ===== */
-const SUPABASE_URL = "https://ikdxkrmpuyvkoifmfzcu.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-/* ===== DOM ===== */
-const drawer = document.getElementById("drawer");
-const listArea = document.getElementById("listArea");
-const overlay = document.getElementById("overlay");
-const modalCode = document.getElementById("modalCode");
-const modalPrice = document.getElementById("modalPrice");
-const priceInput = document.getElementById("priceInput");
-const modalImage = document.getElementById("modalImage");
+  // =====================
+  // 1. Supabase 配置
+  // =====================
+  const SUPABASE_URL = "https://你的项目id.supabase.co";
+  const SUPABASE_ANON_KEY = "你的 anon public key";
 
-document.getElementById("openListBtn").onclick = loadList;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ===== 查询 ===== */
-async function doSearch(){
-  const code = codeInput.value.trim();
-  if(!code) return alert("请输入商品代码");
+  // =====================
+  // 2. DOM
+  // =====================
+  const codeInput   = document.getElementById("codeInput");
+  const searchBtn   = document.getElementById("searchBtn");
+  const result      = document.getElementById("result");
 
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("code", code)
-    .single();
+  const overlay     = document.getElementById("overlay");
+  const modalCode   = document.getElementById("modalCode");
+  const modalPrice  = document.getElementById("modalPrice");
+  const modalImage  = document.getElementById("modalImage");
 
-  openOverlay(code, data);
-}
+  const priceInput  = document.getElementById("priceInput");
+  const imageInput  = document.getElementById("imageInput");
 
-/* ===== 弹窗 ===== */
-function openOverlay(code, data){
-  modalCode.innerText = "商品：" + code;
-  priceInput.value = data?.price || "";
-  modalPrice.innerText = data?.price ? "¥"+data.price : "未设置";
-  modalImage.style.display = data?.image_url ? "block" : "none";
-  modalImage.src = data?.image_url || "";
-  overlay.style.display = "flex";
-}
+  const saveBtn     = document.getElementById("saveBtn");
+  const closeBtn    = document.getElementById("closeBtn");
 
-/* ===== 保存 ===== */
-async function savePrice(){
-  const code = modalCode.innerText.replace("商品：","");
-  const price = priceInput.value;
+  let currentCode = "";
+  let currentRow  = null;
 
-  await supabase
-    .from("products")
-    .upsert({ code, price });
+  // =====================
+  // 3. 查询
+  // =====================
+  searchBtn.onclick = doSearch;
 
-  alert("已保存");
-  overlay.style.display="none";
-  loadList();
-}
+  async function doSearch() {
+    const code = codeInput.value.trim();
+    if (!code) return;
 
-/* ===== 列表 ===== */
-async function loadList(){
-  drawer.classList.add("open");
-  listArea.innerHTML="";
+    currentCode = code;
 
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .order("code");
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("code", code)
+      .maybeSingle();
 
-  data.forEach(item=>{
-    const d=document.createElement("div");
-    d.className="item";
-    d.innerHTML=`<div>${item.code}</div><div>¥${item.price||"-"}</div>`;
-    d.onclick=()=>openOverlay(item.code,item);
-    listArea.appendChild(d);
-  });
-}
+    if (error) {
+      result.innerText = "查询错误：" + error.message;
+      return;
+    }
+
+    openOverlay(code, data);
+  }
+
+  // =====================
+  // 4. 打开弹窗
+  // =====================
+  function openOverlay(code, data) {
+    currentRow = data || null;
+
+    modalCode.innerText = "商品：" + code;
+
+    if (data) {
+      modalPrice.innerText = data.price ? "当前价格：¥" + data.price : "暂无价格";
+      priceInput.value = data.price || "";
+      imageInput.value = data.image_url || "";
+
+      if (data.image_url) {
+        modalImage.src = data.image_url;
+        modalImage.style.display = "block";
+      } else {
+        modalImage.style.display = "none";
+      }
+    } else {
+      modalPrice.innerText = "数据库中不存在该商品";
+      priceInput.value = "";
+      imageInput.value = "";
+      modalImage.style.display = "none";
+    }
+
+    overlay.style.display = "flex";
+  }
+
+  // =====================
+  // 5. 保存（新增 / 更新）
+  // =====================
+  saveBtn.onclick = async () => {
+    const price = priceInput.value ? Number(priceInput.value) : null;
+    const image_url = imageInput.value || null;
+
+    let res;
+
+    if (currentRow) {
+      // 更新
+      res = await supabase
+        .from("products")
+        .update({ price, image_url })
+        .eq("id", currentRow.id);
+    } else {
+      // 新增
+      res = await supabase
+        .from("products")
+        .insert([{ code: currentCode, price, image_url }]);
+    }
+
+    if (res.error) {
+      alert("保存失败：" + res.error.message);
+    } else {
+      alert("保存成功");
+      overlay.style.display = "none";
+    }
+  };
+
+  closeBtn.onclick = () => {
+    overlay.style.display = "none";
+  };
 </script>
 
 </body>
