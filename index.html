@@ -92,7 +92,7 @@ function renderForm(code, data={}) {
   return `
   <div class="card">
     <div>商品代码：${code}</div>
-    ${data.image_url ? `<img src="${data.image_url}">` : ""}
+    ${data.image_url ? `< img src="${data.image_url}">` : ""}
     <div class="price">${data.price ? "¥"+data.price : ""}</div>
 
     <input id="priceInput" value="${data.price||""}" placeholder="输入价格">
