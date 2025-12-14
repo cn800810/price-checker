@@ -19,7 +19,7 @@ body {
 h2 {
   margin:20px 0;
   color:#2d89ef;
-  font-family:"VillaMassiel", Arial, Helvetica, sans-serif;
+  font-family: "VillaMassiel", Arial, Helvetica, sans-serif;
 }
 
 /* ===== 输入区 ===== */
@@ -45,6 +45,7 @@ button {
 /* ===== 折叠目录 ===== */
 #toggleList {
   background:#444;
+  margin-top:15px;
 }
 #list {
   display:none;
@@ -94,21 +95,24 @@ button {
 }
 #modalCode {
   font-size:22px;
+  margin-bottom:10px;
 }
 #modalPrice {
   font-size:28px;
   font-weight:bold;
   color:red;
-  margin:10px 0;
 }
-#modalImg {
-  display:none;
+#priceInput {
+  margin-top:10px;
+}
+#modal img {
   width:80%;
-  margin:10px auto;
+  margin-top:10px;
   border-radius:10px;
 }
 .close-btn {
   background:#999;
+  margin-top:10px;
 }
 </style>
 </head>
@@ -130,9 +134,6 @@ button {
   <div id="modal">
     <div id="modalCode"></div>
     <div id="modalPrice"></div>
-
-    <!-- ✅ 关键修复点：真正的 img 元素 -->
-    < img id="modalImg" />
 
     <input id="priceInput" type="number" placeholder="输入价格" style="display:none;">
     <input id="imgInput" type="file" accept="image/*" style="display:none;">
@@ -171,18 +172,10 @@ function openModal(data){
   overlay.style.display="flex";
   modalCode.innerText = currentCode;
 
-  modalImg.style.display = "none";
-  modalImg.src = "";
-
   if(data){
     modalCode.style.color="green";
     modalPrice.innerText = "¥ " + data.price;
-
-    if(data.image_url){
-      modalImg.src = data.image_url;
-      modalImg.style.display = "block";
-    }
-
+    modalPrice.style.display="block";
     priceInput.style.display="none";
     imgInput.style.display="none";
     saveBtn.style.display="none";
@@ -226,11 +219,7 @@ function toggleList(){
 }
 
 async function loadList(){
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .order("created_at",{ascending:false});
-
+  const { data } = await supabase.from("products").select("*").order("created_at",{ascending:false});
   list.innerHTML="";
   data.forEach(p=>{
     const d=document.createElement("div");
@@ -241,14 +230,14 @@ async function loadList(){
         <div class="price">¥ ${p.price}</div>
       </div>
       <div class="actions">
-        <button onclick="edit('${p.code}')">修改</button>
+        <button onclick="edit('${p.code}','${p.price}')">修改</button>
         <button onclick="del('${p.code}')">删除</button>
       </div>`;
     list.appendChild(d);
   });
 }
 
-function edit(code){
+function edit(code, price){
   codeInput.value = code;
   search();
 }
