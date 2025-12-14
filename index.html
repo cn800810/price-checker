@@ -1,143 +1,151 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>商品价格查询</title>
+  <meta charset="UTF-8" />
+  <title>商品价格查询</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<style>
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial;
-  background:#f5f5f5;
-  margin:0;
-  padding:20px;
-}
-h1 { text-align:center; }
-.card {
-  background:#fff;
-  border-radius:12px;
-  padding:16px;
-  margin-top:20px;
-}
-input, button {
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  font-size:16px;
-}
-button {
-  background:#1677ff;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-}
-button.gray { background:#666; }
-.price {
-  font-size:32px;
-  color:green;
-  text-align:center;
-}
-img {
-  max-width:100%;
-  border-radius:10px;
-  margin-top:10px;
-}
-.list-item {
-  border-bottom:1px solid #eee;
-  padding:10px 0;
-}
-</style>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+      background: #f6f7f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .box {
+      max-width: 420px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+    button {
+      background: #1677ff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+    }
+    .result {
+      margin-top: 15px;
+    }
+    .product {
+      border-top: 1px solid #eee;
+      padding: 10px 0;
+    }
+    img {
+      max-width: 100%;
+      border-radius: 6px;
+      margin-top: 6px;
+    }
+    .actions button {
+      margin-top: 6px;
+      background: #999;
+    }
+  </style>
 </head>
-
 <body>
 
 <h1>商品价格查询</h1>
 
-<input id="codeInput" placeholder="输入商品编码">
-<button onclick="query()">查询</button>
+<div class="box">
+  <input id="codeInput" placeholder="输入商品编码" />
+  <button onclick="queryProduct()">查询</button>
 
-<div id="result"></div>
+  <div id="result" class="result"></div>
 
-<div class="card">
   <h3>商品目录</h3>
   <div id="list"></div>
 </div>
 
 <script>
-const supabase = supabase.createClient(
-  "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
-  "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
-);
+  // ✅ Supabase 初始化（已修复报错）
+  const supabaseClient = window.supabase.createClient(
+    "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
+    "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
+  );
 
-async function query() {
-  const code = codeInput.value.trim();
-  if (!code) return;
+  async function queryProduct() {
+    const code = document.getElementById("codeInput").value.trim();
+    if (!code) return;
 
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("code", code)
-    .single();
+    const { data } = await supabaseClient
+      .from("products")
+      .select("*")
+      .eq("code", code)
+      .single();
 
-  if (!data) {
-    result.innerHTML = renderForm(code);
-  } else {
-    result.innerHTML = renderForm(code, data);
-  }
-}
+    const result = document.getElementById("result");
 
-function renderForm(code, data={}) {
-  return `
-  <div class="card">
-    <div>商品代码：${code}</div>
-    ${data.image_url ? `< img src="${data.image_url}">` : ""}
-    <div class="price">${data.price ? "¥"+data.price : ""}</div>
-
-    <input id="priceInput" value="${data.price||""}" placeholder="输入价格">
-    <input type="file" id="imgInput">
-
-    <button onclick="save('${code}', ${data.id||null})">保存</button>
-    ${data.id ? `<button class="gray" onclick="del(${data.id})">删除</button>` : ""}
-  </div>`;
-}
-
-async function save(code, id) {
-  const price = priceInput.value;
-  let image_url = null;
-
-  const file = imgInput.files[0];
-  if (file) {
-    const path = Date.now()+"_"+file.name;
-    await supabase.storage.from("images").upload(path, file);
-    image_url = supabase.storage.from("images").getPublicUrl(path).data.publicUrl;
+    if (!data) {
+      result.innerHTML = `
+        <p>未找到，录入新商品：</p >
+        <input id="name" placeholder="商品名" />
+        <input id="price" placeholder="价格" />
+        <input id="img" placeholder="图片URL（可选）" />
+        <button onclick="addProduct('${code}')">保存</button>
+      `;
+    } else {
+      result.innerHTML = renderProduct(data);
+    }
   }
 
-  if (id) {
-    await supabase.from("products").update({price, image_url}).eq("id", id);
-  } else {
-    await supabase.from("products").insert({code, price, image_url});
+  async function addProduct(code) {
+    const name = document.getElementById("name").value;
+    const price = document.getElementById("price").value;
+    const image_url = document.getElementById("img").value;
+
+    await supabaseClient.from("products").insert({
+      code, name, price, image_url
+    });
+
+    queryProduct();
+    loadList();
   }
-  query();
+
+  async function deleteProduct(id) {
+    await supabaseClient.from("products").delete().eq("id", id);
+    document.getElementById("result").innerHTML = "";
+    loadList();
+  }
+
+  function renderProduct(p) {
+    return `
+      <div class="product">
+        <div>编码：${p.code}</div>
+        <div>名称：${p.name}</div>
+        <div style="color:green;font-size:20px">¥ ${p.price}</div>
+        ${p.image_url ? `< img src="${p.image_url}">` : ""}
+        <div class="actions">
+          <button onclick="deleteProduct(${p.id})">删除</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadList() {
+    const { data } = await supabaseClient
+      .from("products")
+      .select("*")
+      .order("id", { ascending: false });
+
+    document.getElementById("list").innerHTML =
+      data.map(renderProduct).join("");
+  }
+
   loadList();
-}
-
-async function del(id) {
-  if (!confirm("确认删除？")) return;
-  await supabase.from("products").delete().eq("id", id);
-  result.innerHTML="";
-  loadList();
-}
-
-async function loadList() {
-  const { data } = await supabase.from("products").select("*").order("created_at",{ascending:false});
-  list.innerHTML = data.map(d=>`
-    <div class="list-item">
-      ${d.code} — ¥${d.price||""}
-    </div>`).join("");
-}
-loadList();
 </script>
 
 </body>
