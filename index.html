@@ -3,162 +3,174 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>价格查询</title>
-
-<!-- Supabase SDK -->
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<title>价格查询（共享版）</title>
 
 <style>
-/* ===== 原样保留你的 CSS（未删减） ===== */
 body { font-family: Arial; background:#f5f5f5; margin:0 }
 h2 { text-align:center; margin-top:20px }
-.input-box{ width:90%; margin:10px auto; display:flex; flex-direction:column }
-input{ padding:12px; font-size:18px; border-radius:8px; border:1px solid #aaa }
-button{ padding:14px; margin-top:10px; font-size:18px; background:#2d89ef; color:white; border:none; border-radius:8px }
-#openListBtn{ background:#444 }
-.drawer{ width:80%; max-width:380px; background:white; height:100%; position:fixed; top:0; right:-100%; transition:.35s; z-index:20 }
-.drawer.open{ right:0 }
-.drawer-header{ padding:14px; background:#333; color:white; display:flex; justify-content:space-between }
-.list-area{ padding:10px; height:calc(100% - 120px); overflow:auto }
-.item{ display:flex; align-items:center; border-bottom:1px solid #eee; padding:10px }
-.thumb{ width:55px; height:55px; background:#ccc; margin-right:10px; object-fit:cover }
-.item-info{ flex:1 }
-.item-code{ font-weight:bold }
-.item-price{ color:green }
-.item-actions button{ font-size:14px; padding:6px 10px }
-.overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); justify-content:center; align-items:center; z-index:50 }
-.modal{ background:white; padding:20px; border-radius:12px; width:90%; max-width:420px; position:relative }
-.close-btn{ position:absolute; right:10px; top:10px }
-#modalImage{ width:80%; max-width:260px; display:none; border-radius:10px }
+
+.input-box { width:90%; margin:10px auto; display:flex; flex-direction:column }
+input { padding:12px; font-size:18px; border-radius:8px; border:1px solid #aaa }
+button { padding:14px; margin-top:10px; font-size:18px; border-radius:8px; border:none; background:#2d89ef; color:#fff }
+
+.drawer {
+  position:fixed; top:0; right:-100%;
+  width:80%; max-width:380px; height:100%;
+  background:#fff; transition:.3s; z-index:20;
+  box-shadow:-2px 0 8px rgba(0,0,0,.25)
+}
+.drawer.open { right:0 }
+
+.drawer-header {
+  background:#333; color:#fff;
+  padding:14px; display:flex; justify-content:space-between
+}
+
+.list-area { padding:10px; overflow-y:auto; height:calc(100% - 120px) }
+
+.item { display:flex; gap:10px; padding:10px; border-bottom:1px solid #eee }
+.thumb { width:55px; height:55px; background:#ddd; object-fit:cover }
+.item-info { flex:1 }
+.item-code { font-weight:bold }
+.item-price { color:green }
+.small-btn { padding:6px 10px; border-radius:6px; border:none; background:#2d89ef; color:#fff }
+
+.overlay {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.55);
+  display:none; align-items:center; justify-content:center;
+  z-index:50
+}
+.modal {
+  background:#fff; width:90%; max-width:420px;
+  padding:20px; border-radius:12px; text-align:center;
+  position:relative
+}
+.close-btn {
+  position:absolute; top:10px; right:10px;
+  background:#999; color:#fff; border:none; border-radius:6px
+}
+#modalPrice { font-size:32px; color:green }
+#noPrice { color:red; font-size:20px }
+#modalImage { width:80%; max-width:260px; display:none; border-radius:10px }
 </style>
 </head>
 
 <body>
 
-<h2>价格查询</h2>
+<h2>价格查询（多人共享）</h2>
 
 <div class="input-box">
   <input id="codeInput" placeholder="输入商品代码" />
   <button onclick="doSearch()">查询</button>
-  <button id="openListBtn">商品列表</button>
+  <button onclick="openList()">已保存商品</button>
 </div>
 
 <div id="drawer" class="drawer">
   <div class="drawer-header">
     <span>商品列表</span>
-    <span onclick="drawer.classList.remove('open')" style="cursor:pointer">关闭</span>
+    <span style="cursor:pointer" onclick="closeList()">关闭</span>
   </div>
   <div class="list-area" id="listArea"></div>
 </div>
 
 <div id="overlay" class="overlay">
   <div class="modal">
-    <button class="close-btn" onclick="overlay.style.display='none'">X</button>
-    <h2 id="modalTitle"></h2>
+    <button class="close-btn" onclick="closeOverlay()">X</button>
+    <h3 id="modalTitle"></h3>
     <div id="modalCode"></div>
     < img id="modalImage">
     <div id="modalPrice"></div>
-    <input id="priceInput" placeholder="输入价格">
-    <button onclick="saveProduct()">保存</button>
+    <div id="noPrice"></div>
+    <input id="priceInput" type="number" placeholder="输入价格" />
+    <button onclick="savePrice()">保存</button>
   </div>
 </div>
 
+<!-- ✅ 必须加载 Supabase CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 /* ===== Supabase 初始化 ===== */
-const supabase = supabaseJs.createClient(
+const supabase = window.supabase.createClient(
   'https://ikdxkrmpuyvkoifmfzcu.supabase.co',
   'sb_publishable_WJFKBCmGiyz4Wm1lVoTUfQ_HevLelwn'
-)
-
-const drawer = document.getElementById('drawer')
-const listArea = document.getElementById('listArea')
-const overlay = document.getElementById('overlay')
+);
 
 /* ===== 查询 ===== */
 async function doSearch(){
-  const code = codeInput.value.trim()
-  if(!code) return alert('请输入代码')
+  const code = codeInput.value.trim();
+  if(!code) return alert("请输入商品代码");
 
   const { data } = await supabase
     .from('products')
     .select('*')
     .eq('code', code)
-    .single()
+    .single();
 
-  openOverlay(code, data)
+  openOverlay(code, data);
 }
 
 /* ===== 弹窗 ===== */
 function openOverlay(code, data){
-  overlay.style.display = 'flex'
-  modalCode.innerText = '商品代码：' + code
-  modalCode.dataset.code = code
+  overlay.style.display = "flex";
+  modalCode.innerText = "商品代码：" + code;
 
   if(data){
-    modalTitle.innerText = '查询成功'
-    modalPrice.innerText = '¥' + data.price
-    priceInput.value = data.price
+    modalTitle.innerText = "查询成功";
+    modalPrice.innerText = "¥" + data.price;
+    modalPrice.style.display = "block";
+    noPrice.style.display = "none";
+    priceInput.value = data.price;
     if(data.image){
-      modalImage.src = data.image
-      modalImage.style.display = 'block'
+      modalImage.src = data.image;
+      modalImage.style.display = "block";
     }
   }else{
-    modalTitle.innerText = '未录入，新增商品'
-    modalPrice.innerText = ''
-    priceInput.value = ''
-    modalImage.style.display = 'none'
+    modalTitle.innerText = "未找到";
+    modalPrice.style.display = "none";
+    noPrice.style.display = "block";
+    priceInput.value = "";
+    modalImage.style.display = "none";
   }
 }
 
-/* ===== 保存（新增 / 更新） ===== */
-async function saveProduct(){
-  const code = modalCode.dataset.code
-  const price = parseFloat(priceInput.value)
-  if(isNaN(price)) return alert('价格错误')
+function closeOverlay(){ overlay.style.display="none" }
 
-  await supabase.from('products').upsert({
-    code,
-    price
-  })
+/* ===== 保存 ===== */
+async function savePrice(){
+  const code = modalCode.innerText.replace("商品代码：","");
+  const price = parseFloat(priceInput.value).toFixed(2);
 
-  overlay.style.display = 'none'
-  loadList()
+  await supabase.from('products').upsert({ code, price });
+  alert("保存成功");
+  closeOverlay();
 }
 
 /* ===== 列表 ===== */
-openListBtn.onclick = ()=>{
-  drawer.classList.add('open')
-  loadList()
-}
-
-async function loadList(){
-  listArea.innerHTML = '加载中...'
-  const { data } = await supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending:false })
-
-  listArea.innerHTML = ''
-  data.forEach(p=>{
-    const d = document.createElement('div')
-    d.className = 'item'
+async function openList(){
+  drawer.classList.add("open");
+  const { data } = await supabase.from('products').select('*').order('code');
+  listArea.innerHTML = "";
+  data.forEach(i=>{
+    const d = document.createElement("div");
+    d.className="item";
     d.innerHTML = `
       <div class="item-info">
-        <div class="item-code">${p.code}</div>
-        <div class="item-price">¥${p.price}</div>
+        <div class="item-code">${i.code}</div>
+        <div class="item-price">¥${i.price}</div>
       </div>
-      <button onclick="deleteProduct('${p.code}')">删除</button>
-    `
-    listArea.appendChild(d)
-  })
+      <button class="small-btn" onclick="doSearchFromList('${i.code}')">查看</button>
+    `;
+    listArea.appendChild(d);
+  });
 }
-
-/* ===== 删除 ===== */
-async function deleteProduct(code){
-  if(!confirm('确认删除 '+code+' ?')) return
-  await supabase.from('products').delete().eq('code', code)
-  loadList()
+function doSearchFromList(c){
+  codeInput.value = c;
+  closeList();
+  doSearch();
 }
+function closeList(){ drawer.classList.remove("open") }
 </script>
 
 </body>
