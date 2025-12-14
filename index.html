@@ -1,253 +1,282 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>价格查询</title>
+  <meta charset="UTF-8" />
+  <title>价格查询</title>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<style>
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background:#f5f5f5;
-  margin:0;
-  text-align:center;
-}
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+      background: #f2f2f2;
+    }
 
-/* ===== 标题 ===== */
-h2 {
-  margin:20px 0;
-  color:#2d89ef;
-  font-family: "VillaMassiel", Arial, Helvetica, sans-serif;
-}
+    /* 顶部标题 */
+    .header {
+      background: #e0e0e0;
+      padding: 14px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      color: #1e6bff;
+      font-family: "VillaMassiel", sans-serif;
+    }
 
-/* ===== 输入区 ===== */
-.input-box {
-  width:90%;
-  max-width:420px;
-  margin:auto;
-}
-input, button {
-  width:100%;
-  padding:12px;
-  font-size:18px;
-  margin-top:10px;
-  box-sizing:border-box;
-}
-button {
-  background:#2d89ef;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-}
+    /* 页面居中容器 */
+    .container {
+      display: flex;
+      justify-content: center;
+      margin-top: 40px;
+    }
 
-/* ===== 折叠目录 ===== */
-#toggleList {
-  background:#444;
-  margin-top:15px;
-}
-#list {
-  display:none;
-  width:90%;
-  max-width:520px;
-  margin:20px auto;
-  text-align:left;
-}
-.item {
-  background:#fff;
-  padding:12px;
-  margin-bottom:10px;
-  border-radius:8px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.code {
-  font-weight:bold;
-}
-.price {
-  color:red;
-  font-weight:bold;
-}
-.actions button {
-  font-size:14px;
-  padding:6px 10px;
-  margin-left:5px;
-}
+    .card {
+      background: #fff;
+      width: 320px;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 6px 16px rgba(0,0,0,.15);
+    }
 
-/* ===== 弹窗 ===== */
-#overlay {
-  display:none;
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:rgba(0,0,0,0.6);
-  justify-content:center;
-  align-items:center;
-}
-#modal {
-  background:#fff;
-  width:90%;
-  max-width:380px;
-  padding:20px;
-  border-radius:12px;
-}
-#modalCode {
-  font-size:22px;
-  margin-bottom:10px;
-}
-#modalPrice {
-  font-size:28px;
-  font-weight:bold;
-  color:red;
-}
-#priceInput {
-  margin-top:10px;
-}
-#modal img {
-  width:80%;
-  margin-top:10px;
-  border-radius:10px;
-}
-.close-btn {
-  background:#999;
-  margin-top:10px;
-}
-</style>
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 12px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    .price {
+      color: red;
+      font-weight: bold;
+      font-size: 20px;
+      margin-top: 12px;
+    }
+
+    .code-green {
+      color: green;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .buttons {
+      margin-top: 18px;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: #2f8cff;
+      color: #fff;
+    }
+
+    .btn-cancel {
+      background: #bbb;
+      color: #fff;
+    }
+
+    .product-image {
+      margin-top: 12px;
+      max-width: 180px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    details {
+      margin-top: 30px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .record {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      align-items: center;
+    }
+
+    .record span {
+      font-size: 14px;
+    }
+
+    .record-actions button {
+      margin-left: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>价格查询（多人共享）</h2>
+  <div class="header">价格查询（多人共享）</div>
 
-<div class="input-box">
-  <input id="codeInput" placeholder="输入商品代码"/>
-  <button onclick="search()">查询</button>
-  <button id="toggleList" onclick="toggleList()">📂 已保存商品</button>
-</div>
+  <div class="container">
+    <div class="card">
 
-<div id="list"></div>
+      <input id="codeInput" placeholder="输入商品代码" />
+      <input id="priceInput" placeholder="输入价格" />
+      <input type="file" id="imageInput" accept="image/*" />
 
-<!-- 弹窗 -->
-<div id="overlay">
-  <div id="modal">
-    <div id="modalCode"></div>
-    <div id="modalPrice"></div>
+      <div id="result"></div>
 
-    <input id="priceInput" type="number" placeholder="输入价格" style="display:none;">
-    <input id="imgInput" type="file" accept="image/*" style="display:none;">
+      <div class="buttons" id="actionButtons">
+        <button class="btn-save" onclick="save()">保存</button>
+        <button class="btn-cancel" onclick="reset()">取消</button>
+      </div>
 
-    <button id="saveBtn" onclick="saveNew()" style="display:none;">保存</button>
-    <button class="close-btn" onclick="closeModal()">关闭</button>
+      <!-- 已保存记录 -->
+      <details>
+        <summary>已保存记录</summary>
+        <div id="recordList"></div>
+      </details>
+
+    </div>
   </div>
-</div>
 
 <script>
-const supabase = window.supabase.createClient(
-  "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
-  "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
-);
+/* ================= Supabase 初始化 ================= */
 
-let currentCode = "";
-let listOpen = false;
+// TODO：替换成你自己的
+const SUPABASE_URL = "https://ikdxkrmpuyvkoifmfzcu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn";
 
-/* ===== 查询 ===== */
-async function search(){
-  const code = codeInput.value.trim();
-  if(!code) return alert("请输入商品代码");
-  currentCode = code;
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/* ================= 图片上传 ================= */
+
+async function uploadImage(file, code) {
+  if (!file) return null;
+
+  const ext = file.name.split('.').pop();
+  const fileName = `${code}_${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('product-images')
+    .upload(fileName, file, { upsert: true });
+
+  if (error) {
+    alert("图片上传失败");
+    return null;
+  }
+
+  const { data } = supabase.storage
+    .from('product-images')
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
+
+/* ================= 查询 ================= */
+
+async function query(code) {
   const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("code", code)
-    .maybeSingle();
+    .from('prices')
+    .select('*')
+    .eq('code', code)
+    .single();
 
-  openModal(data);
-}
+  const result = document.getElementById('result');
+  const buttons = document.getElementById('actionButtons');
 
-/* ===== 弹窗 ===== */
-function openModal(data){
-  overlay.style.display="flex";
-  modalCode.innerText = currentCode;
-
-  if(data){
-    modalCode.style.color="green";
-    modalPrice.innerText = "¥ " + data.price;
-    modalPrice.style.display="block";
-    priceInput.style.display="none";
-    imgInput.style.display="none";
-    saveBtn.style.display="none";
-  }else{
-    modalCode.style.color="#000";
-    modalPrice.innerText = "未录入";
-    priceInput.style.display="block";
-    imgInput.style.display="block";
-    saveBtn.style.display="block";
+  if (data) {
+    result.innerHTML = `
+      <div class="code-green">${data.code}</div>
+      <div class="price">¥ ${data.price}</div>
+      ${data.image_url ? `< img src="${data.image_url}" class="product-image">` : ''}
+    `;
+    buttons.innerHTML = `<button class="btn-cancel" onclick="reset()">取消</button>`;
+  } else {
+    result.innerHTML = "";
+    buttons.innerHTML = `
+      <button class="btn-save" onclick="save()">保存</button>
+      <button class="btn-cancel" onclick="reset()">取消</button>
+    `;
   }
 }
 
-function closeModal(){
-  overlay.style.display="none";
-  codeInput.value="";
-}
+/* ================= 保存 ================= */
 
-/* ===== 保存 ===== */
-async function saveNew(){
-  const price = priceInput.value;
-  if(!price) return alert("请输入价格");
+async function save() {
+  const code = codeInput.value.trim();
+  const price = priceInput.value.trim();
+  const file = imageInput.files[0];
 
-  let image_url = null;
-  if(imgInput.files[0]){
-    const file = imgInput.files[0];
-    const path = Date.now()+"_"+file.name;
-    await supabase.storage.from("product-images").upload(path, file);
-    image_url = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+  if (!code || !price) {
+    alert("请输入代码和价格");
+    return;
   }
 
-  await supabase.from("products").insert({ code: currentCode, price, image_url });
-  closeModal();
-  loadList();
+  const imageUrl = await uploadImage(file, code);
+
+  await supabase.from('prices').upsert({
+    code,
+    price,
+    image_url: imageUrl
+  });
+
+  reset();
+  loadRecords();
 }
 
-/* ===== 目录 ===== */
-function toggleList(){
-  listOpen = !listOpen;
-  list.style.display = listOpen ? "block" : "none";
-  if(listOpen) loadList();
+/* ================= 删除 ================= */
+
+async function del(code) {
+  if (!confirm("确定删除？")) return;
+  await supabase.from('prices').delete().eq('code', code);
+  loadRecords();
 }
 
-async function loadList(){
-  const { data } = await supabase.from("products").select("*").order("created_at",{ascending:false});
-  list.innerHTML="";
-  data.forEach(p=>{
-    const d=document.createElement("div");
-    d.className="item";
-    d.innerHTML=`
-      <div>
-        <div class="code">${p.code}</div>
-        <div class="price">¥ ${p.price}</div>
+/* ================= 列表 ================= */
+
+async function loadRecords() {
+  const { data } = await supabase.from('prices').select('*').order('created_at', { ascending: false });
+  const list = document.getElementById('recordList');
+  list.innerHTML = "";
+
+  data.forEach(item => {
+    list.innerHTML += `
+      <div class="record">
+        <span>${item.code} - ¥${item.price}</span>
+        <div class="record-actions">
+          <button onclick="query('${item.code}')">修改</button>
+          <button onclick="del('${item.code}')">删除</button>
+        </div>
       </div>
-      <div class="actions">
-        <button onclick="edit('${p.code}','${p.price}')">修改</button>
-        <button onclick="del('${p.code}')">删除</button>
-      </div>`;
-    list.appendChild(d);
+    `;
   });
 }
 
-function edit(code, price){
-  codeInput.value = code;
-  search();
+/* ================= 工具 ================= */
+
+function reset() {
+  codeInput.value = "";
+  priceInput.value = "";
+  imageInput.value = "";
+  result.innerHTML = "";
+  loadRecords();
 }
 
-async function del(code){
-  if(confirm("确认删除 "+code+" ?")){
-    await supabase.from("products").delete().eq("code",code);
-    loadList();
-  }
-}
+codeInput.addEventListener("blur", () => {
+  if (codeInput.value) query(codeInput.value);
+});
+
+loadRecords();
 </script>
 
 </body>
