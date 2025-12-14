@@ -15,19 +15,18 @@ body {
   text-align:center;
 }
 
-/* ===== 标题 ===== */
 h2 {
   margin:20px 0;
   color:#2d89ef;
   font-family: "VillaMassiel", Arial, Helvetica, sans-serif;
 }
 
-/* ===== 输入区 ===== */
 .input-box {
   width:90%;
   max-width:420px;
   margin:auto;
 }
+
 input, button {
   width:100%;
   padding:12px;
@@ -35,6 +34,7 @@ input, button {
   margin-top:10px;
   box-sizing:border-box;
 }
+
 button {
   background:#2d89ef;
   color:#fff;
@@ -42,11 +42,11 @@ button {
   border-radius:8px;
 }
 
-/* ===== 折叠目录 ===== */
 #toggleList {
   background:#444;
   margin-top:15px;
 }
+
 #list {
   display:none;
   width:90%;
@@ -54,6 +54,7 @@ button {
   margin:20px auto;
   text-align:left;
 }
+
 .item {
   background:#fff;
   padding:12px;
@@ -63,13 +64,10 @@ button {
   justify-content:space-between;
   align-items:center;
 }
-.code {
-  font-weight:bold;
-}
-.price {
-  color:red;
-  font-weight:bold;
-}
+
+.code { font-weight:bold; }
+.price { color:red; font-weight:bold; }
+
 .actions button {
   font-size:14px;
   padding:6px 10px;
@@ -86,6 +84,7 @@ button {
   justify-content:center;
   align-items:center;
 }
+
 #modal {
   background:#fff;
   width:90%;
@@ -93,24 +92,25 @@ button {
   padding:20px;
   border-radius:12px;
 }
+
 #modalCode {
   font-size:22px;
   margin-bottom:10px;
 }
+
 #modalPrice {
   font-size:28px;
   font-weight:bold;
   color:red;
 }
-#priceInput {
-  margin-top:10px;
-}
+
 #modalImg {
   width:80%;
   margin-top:10px;
   border-radius:10px;
   display:none;
 }
+
 .close-btn {
   background:#999;
   margin-top:10px;
@@ -146,10 +146,22 @@ button {
 </div>
 
 <script>
+/* ===== Supabase ===== */
 const supabase = window.supabase.createClient(
   "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
   "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
 );
+
+/* ===== DOM 绑定（关键修复点）===== */
+const overlay = document.getElementById("overlay");
+const modalCode = document.getElementById("modalCode");
+const modalPrice = document.getElementById("modalPrice");
+const modalImg = document.getElementById("modalImg");
+const priceInput = document.getElementById("priceInput");
+const imgInput = document.getElementById("imgInput");
+const saveBtn = document.getElementById("saveBtn");
+const codeInput = document.getElementById("codeInput");
+const list = document.getElementById("list");
 
 let currentCode = "";
 let listOpen = false;
@@ -177,12 +189,11 @@ function openModal(data){
   if(data){
     modalCode.style.color="green";
     modalPrice.innerText = "¥ " + data.price;
-    modalPrice.style.display="block";
 
     if(data.image_url){
       modalImg.src = data.image_url;
       modalImg.style.display="block";
-    }else{
+    } else {
       modalImg.style.display="none";
     }
 
@@ -213,13 +224,20 @@ async function saveNew(){
   if(!price) return alert("请输入价格");
 
   let image_url = null;
+
   if(imgInput.files[0]){
     const file = imgInput.files[0];
     const path = Date.now()+"_"+file.name;
-    await supabase.storage.from("product-images").upload(path, file);
-    image_url = supabase.storage
-      .from("product-images")
-      .getPublicUrl(path).data.publicUrl;
+
+    const { error } = await supabase
+      .storage.from("product-images")
+      .upload(path, file);
+
+    if(!error){
+      image_url = supabase
+        .storage.from("product-images")
+        .getPublicUrl(path).data.publicUrl;
+    }
   }
 
   await supabase.from("products").insert({
