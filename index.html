@@ -1,200 +1,89 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
   <meta charset="UTF-8" />
   <title>商品价格查询</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- Supabase SDK -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f2f2f2;
-    }
-
-    .card {
-      max-width: 360px;
-      margin: 60px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.12);
-      text-align: center;
-    }
-
-    input {
-      width: 90%;
-      padding: 8px;
-      font-size: 15px;
-      margin: 10px auto;
-      display: block;
-    }
-
-    button {
-      width: 90%;
-      padding: 10px;
-      font-size: 16px;
-      margin: 10px auto;
-      display: block;
-      cursor: pointer;
-    }
-
-    .primary {
-      background: #2f6fed;
-      color: white;
-      border: none;
-      border-radius: 6px;
-    }
-
-    .danger {
-      background: #999;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      margin-top: 6px;
-    }
-
-    .folder {
-      margin-top: 15px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .list {
-      display: none;
-      margin-top: 10px;
-      text-align: left;
-    }
-
-    .item {
-      border-bottom: 1px solid #eee;
-      padding: 8px 0;
-    }
-
-    /* 弹窗 */
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-content {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      width: 300px;
-      text-align: center;
-    }
+    body { font-family: Arial; padding: 20px; }
+    input, button { margin: 4px; }
+    img { max-width: 80px; display: block; }
+    li { margin-bottom: 10px; }
   </style>
 </head>
-
 <body>
 
-<div class="card">
-  <h2>商品价格查询</h2>
+<h2>商品价格查询</h2>
 
-  <input id="codeInput" placeholder="输入商品编码" />
-  <button class="primary" onclick="queryProduct()">查询</button>
+<input id="code" placeholder="商品编码">
+<input id="name" placeholder="商品名">
+<input id="price" placeholder="价格">
+<input id="image" placeholder="图片URL">
+<button onclick="save()">保存 / 更新</button>
 
-  <div class="folder" onclick="toggleList()">📂 商品目录（点击展开 / 收起）</div>
-  <div id="productList" class="list"></div>
-</div>
-
-<!-- 弹窗 -->
-<div id="modal" class="modal" onclick="closeModal()">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <div id="modalBody"></div>
-    <button class="primary" onclick="closeModal()">关闭</button>
-  </div>
-</div>
+<h3>商品列表</h3>
+<ul id="list"></ul>
 
 <script>
-  /* ✅ Supabase 正确初始化（已帮你填好） */
-  const supabase = window.supabase.createClient(
-    'https://ikdxkrmpuyvkoifmfzcu.supabase.co',
-    'sb_publishable_WJFKBCmGiyz4Wm1lVoTUfQ_HevLelwn'
-  );
+const supabase = supabaseJs.createClient(
+  'https://ikdxkrmpuyvkoifmfzcu.supabase.co',
+  'sb_publishable_WJFKBCmGiyz4Wm1lVoTUfQ_HevLelwn'
+)
 
-  /* 查询 */
-  async function queryProduct() {
-    const code = document.getElementById('codeInput').value.trim();
-    if (!code) return;
+async function loadList() {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false })
 
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .eq('code', code)
-      .single();
+  const list = document.getElementById('list')
+  list.innerHTML = ''
 
-    if (!data) {
-      showModal(`未找到商品<br>编码：${code}`);
-    } else {
-      showModal(`
-        <b>商品编码：</b>${data.code}<br>
-        <b>价格：</b>￥${data.price ?? '未设置'}
-      `);
-    }
+  if (error || !data) {
+    list.innerHTML = '<li>无法加载数据</li>'
+    return
   }
 
-  /* 加载目录 */
-  async function loadList() {
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
+  data.forEach(item => {
+    const li = document.createElement('li')
+    li.innerHTML = `
+      <b>${item.code}</b> - ${item.name} - ¥${item.price}<br>
+      ${item.image ? `< img src="${item.image}">` : ''}
+      <button onclick="edit('${item.code}','${item.name}',${item.price},'${item.image || ''}')">编辑</button>
+      <button onclick="remove('${item.code}')">删除</button>
+    `
+    list.appendChild(li)
+  })
+}
 
-    const list = document.getElementById('productList');
-    list.innerHTML = '';
+async function save() {
+  const code = code.value.trim()
+  if (!code) return alert('必须填写编码')
 
-    data.forEach(p => {
-      const div = document.createElement('div');
-      div.className = 'item';
-      div.innerHTML = `
-        编码：${p.code}<br>
-        价格：￥${p.price ?? '未设置'}
-        <button class="danger" onclick="deleteItem(${p.id})">删除</button>
-      `;
-      list.appendChild(div);
-    });
-  }
+  await supabase.from('products').upsert({
+    code,
+    name: name.value,
+    price: price.value,
+    image: image.value
+  })
 
-  /* 删除 */
-  async function deleteItem(id) {
-    if (!confirm('确认删除？')) return;
+  loadList()
+}
 
-    await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
+function edit(c,n,p,i) {
+  code.value = c
+  name.value = n
+  price.value = p
+  image.value = i
+}
 
-    loadList();
-  }
+async function remove(code) {
+  if (!confirm('确定删除？')) return
+  await supabase.from('products').delete().eq('code', code)
+  loadList()
+}
 
-  /* 折叠 */
-  function toggleList() {
-    const el = document.getElementById('productList');
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  }
-
-  /* 弹窗 */
-  function showModal(html) {
-    document.getElementById('modalBody').innerHTML = html;
-    document.getElementById('modal').style.display = 'flex';
-  }
-
-  function closeModal() {
-    document.getElementById('modal').style.display = 'none';
-  }
-
-  loadList();
+loadList()
 </script>
 
 </body>
