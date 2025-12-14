@@ -99,8 +99,18 @@ button {
   text-align: center;
 }
 .modal-content h3 {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
+
+/* 已保存价格显示 */
+.saved-price {
+  color: red;
+  font-weight: bold;
+  font-size: 26px;
+  margin: 20px 0;
+}
+
+/* 操作按钮 */
 .actions {
   display: flex;
   gap: 10px;
@@ -111,6 +121,9 @@ button {
 }
 .cancel {
   background: #aaa;
+}
+.hidden {
+  display: none;
 }
 </style>
 </head>
@@ -139,10 +152,14 @@ button {
   <div class="modal-content">
     <h3 id="modalTitle"></h3>
 
+    <!-- 已保存价格 -->
+    <div id="savedPrice" class="saved-price hidden"></div>
+
+    <!-- 新商品输入 -->
     <input id="priceInput" type="number" step="0.01" placeholder="输入价格"/>
 
     <div class="actions">
-      <button onclick="save()">保存</button>
+      <button id="saveBtn" onclick="save()">保存</button>
       <button class="cancel" onclick="closeModal()">取消</button>
     </div>
   </div>
@@ -176,7 +193,26 @@ async function search() {
 function openModal(code, data) {
   document.getElementById("modal").style.display = "block";
   document.getElementById("modalTitle").textContent = code;
-  document.getElementById("priceInput").value = data?.price ?? "";
+
+  const priceInput = document.getElementById("priceInput");
+  const saveBtn = document.getElementById("saveBtn");
+  const savedPrice = document.getElementById("savedPrice");
+
+  if (data) {
+    // ✅ 已保存：只显示价格
+    savedPrice.textContent = "¥ " + (data.price ?? "未设置");
+    savedPrice.classList.remove("hidden");
+
+    priceInput.classList.add("hidden");
+    saveBtn.classList.add("hidden");
+  } else {
+    // ✅ 新商品：显示输入框
+    priceInput.value = "";
+    priceInput.classList.remove("hidden");
+    saveBtn.classList.remove("hidden");
+
+    savedPrice.classList.add("hidden");
+  }
 }
 
 /* ========= 保存 ========= */
@@ -184,28 +220,10 @@ async function save() {
   const price = document.getElementById("priceInput").value;
   if (price === "") return alert("请输入价格");
 
-  if (currentProduct.id) {
-    await supabase.from("products")
-      .update({ price })
-      .eq("id", currentProduct.id);
-  } else {
-    await supabase.from("products")
-      .insert({ code: currentProduct.code, price });
-  }
+  await supabase.from("products")
+    .insert({ code: currentProduct.code, price });
 
   closeModal();
-  loadRecords();
-}
-
-/* ========= 删除 ========= */
-async function removeProduct(p) {
-  if (!confirm(`确认删除商品 ${p.code} 吗？`)) return;
-
-  await supabase
-    .from("products")
-    .delete()
-    .eq("id", p.id);
-
   loadRecords();
 }
 
@@ -254,6 +272,13 @@ async function loadRecords() {
 function edit(p) {
   currentProduct = p;
   openModal(p.code, p);
+}
+
+/* ========= 删除 ========= */
+async function removeProduct(p) {
+  if (!confirm(`确认删除商品 ${p.code} 吗？`)) return;
+  await supabase.from("products").delete().eq("id", p.id);
+  loadRecords();
 }
 
 loadRecords();
