@@ -5,31 +5,65 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>价格查询（多人共享）</title>
 
+<!-- Supabase SDK v2（CDN，全局 window.supabase） -->
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <style>
-body { font-family: Arial; background:#f5f5f5; margin:0 }
-h2 { text-align:center; margin:20px }
-input,button { width:100%; padding:12px; font-size:16px; margin-top:10px }
-button { background:#2d89ef; color:#fff; border:none; border-radius:6px }
-
-.container { width:90%; max-width:600px; margin:auto }
-.item { background:#fff; padding:10px; border-radius:6px; margin:6px 0; cursor:pointer }
-.price { color:green }
-
-.group-title { font-weight:bold; margin-top:10px; cursor:pointer }
-.group-items { margin-left:10px }
-
-.modal {
-  position:fixed; inset:0; background:rgba(0,0,0,.5);
-  display:none; justify-content:center; align-items:center;
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f5f5f5;
+  margin: 0;
 }
-.modal-box {
-  background:#fff; padding:20px; width:90%; max-width:400px; border-radius:8px
+h2 {
+  text-align: center;
+  margin: 20px 0;
 }
-img { max-width:100%; margin-top:10px }
-.danger { background:#d9534f }
-.gray { background:#aaa }
+.box {
+  width: 90%;
+  max-width: 500px;
+  margin: auto;
+}
+input, button {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  margin-top: 10px;
+  box-sizing: border-box;
+}
+button {
+  background: #2d89ef;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+}
+details {
+  width: 90%;
+  max-width: 600px;
+  margin: 20px auto;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+}
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #eee;
+  padding: 10px 0;
+}
+.item:first-child {
+  border-top: none;
+}
+.item img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-right: 10px;
+}
+.price {
+  color: green;
+}
 </style>
 </head>
 
@@ -37,144 +71,146 @@ img { max-width:100%; margin-top:10px }
 
 <h2>价格查询（多人共享）</h2>
 
-<div class="container">
+<div class="box">
   <input id="codeInput" placeholder="输入商品代码" />
-  <button onclick="handleCode()">查询</button>
+  <button onclick="search()">查询 / 保存</button>
+</div>
+
+<details open>
+  <summary>商品列表（点击折叠）</summary>
   <div id="list"></div>
-</div>
-
-<!-- 弹窗 -->
-<div id="modal" class="modal">
-  <div class="modal-box">
-    <h3 id="modalTitle"></h3>
-
-    <input id="priceInput" placeholder="价格" />
-    <input id="imgInput" type="file" accept="image/*" />
-
-    < img id="preview" />
-
-    <button onclick="save()">保存 / 修改</button>
-    <button class="danger" onclick="askDelete()">删除</button>
-    <button class="gray" onclick="closeModal()">取消</button>
-  </div>
-</div>
+</details>
 
 <script>
-const supabase = supabase.createClient(
+/* ========= Supabase 初始化（关键修复点） ========= */
+const supabase = window.supabase.createClient(
   "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
   "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
-)
+);
 
-let current = null
+/* ========= 查询入口 ========= */
+async function search() {
+  const code = document.getElementById("codeInput").value.trim();
+  if (!code) {
+    alert("请输入商品代码");
+    return;
+  }
 
-/* 查询 */
-async function handleCode() {
-  const code = codeInput.value.trim()
-  if (!code) return alert("请输入商品代码")
-
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .select("*")
     .eq("code", code)
-    .maybeSingle()
+    .maybeSingle();
 
-  current = data
-  openModal(code, data)
-}
-
-/* 打开弹窗 */
-function openModal(code, data) {
-  modal.style.display = "flex"
-  modalTitle.textContent = data ? "修改商品" : "新商品"
-  priceInput.value = data?.price ?? ""
-  preview.src = data?.image_url ?? ""
-}
-
-/* 关闭 */
-function closeModal() {
-  modal.style.display = "none"
-  current = null
-}
-
-/* 保存 / 修改 */
-async function save() {
-  const code = codeInput.value.trim()
-  const price = priceInput.value.trim()
-  let imageUrl = current?.image_url
-
-  if (imgInput.files[0]) {
-    const file = imgInput.files[0]
-    const path = `${code}-${Date.now()}`
-    await supabase.storage.from("product-images").upload(path, file)
-    imageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl
+  if (error) {
+    alert("查询失败，请检查 RLS");
+    return;
   }
 
-  if (current) {
-    await supabase.from("products")
-      .update({ price, image_url: imageUrl })
-      .eq("code", code)
+  if (!data) {
+    await createNew(code);
   } else {
-    await supabase.from("products")
-      .insert({ code, price, image_url: imageUrl })
+    await viewOrEdit(data);
   }
 
-  closeModal()
-  loadList()
+  document.getElementById("codeInput").value = "";
+  loadList();
 }
 
-/* 删除（二次确认） */
-async function askDelete() {
-  if (!current) return
-  if (!confirm("⚠️ 确认要删除该商品吗？此操作不可恢复")) return
+/* ========= 新建商品 ========= */
+async function createNew(code) {
+  const price = prompt("新商品，输入价格：");
+  if (price === null) return;
 
-  await supabase.from("products")
-    .delete()
-    .eq("code", current.code)
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = "image/*";
 
-  closeModal()
-  loadList()
+  fileInput.onchange = async () => {
+    let image_url = null;
+
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const path = `${Date.now()}_${file.name}`;
+
+      const { error: uploadError } = await supabase
+        .storage
+        .from("product-images")
+        .upload(path, file);
+
+      if (!uploadError) {
+        image_url = supabase
+          .storage
+          .from("product-images")
+          .getPublicUrl(path).data.publicUrl;
+      }
+    }
+
+    await supabase.from("products").insert({
+      code,
+      price,
+      image_url
+    });
+  };
+
+  fileInput.click();
 }
 
-/* 商品列表（折叠） */
+/* ========= 查看 / 修改 / 删除 ========= */
+async function viewOrEdit(product) {
+  const choice = confirm(
+    `商品：${product.code}\n价格：${product.price ?? "未设置"}\n\n确定 → 修改\n取消 → 删除`
+  );
+
+  if (choice) {
+    const newPrice = prompt("输入新价格：", product.price ?? "");
+    if (newPrice === null) return;
+
+    await supabase
+      .from("products")
+      .update({ price: newPrice })
+      .eq("id", product.id);
+  } else {
+    const del = confirm("确定要删除这个商品吗？");
+    if (del) {
+      await supabase
+        .from("products")
+        .delete()
+        .eq("id", product.id);
+    }
+  }
+}
+
+/* ========= 加载列表 ========= */
 async function loadList() {
-  const { data } = await supabase.from("products").select("*").order("code")
-  const groups = {}
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    list.innerHTML = "<div>暂无商品</div>";
+    return;
+  }
 
   data.forEach(p => {
-    const k = isNaN(p.code[0]) ? p.code[0].toUpperCase() : "数字"
-    if (!groups[k]) groups[k] = []
-    groups[k].push(p)
-  })
-
-  list.innerHTML = ""
-  Object.keys(groups).sort().forEach(g => {
-    const div = document.createElement("div")
+    const div = document.createElement("div");
+    div.className = "item";
     div.innerHTML = `
-      <div class="group-title" onclick="toggle('${g}')">▶ ${g}</div>
-      <div id="g-${g}" class="group-items" style="display:none">
-        ${groups[g].map(p => `
-          <div class="item" onclick="select('${p.code}')">
-            ${p.code}
-            <span class="price">¥ ${p.price ?? "未设置"}</span>
-          </div>
-        `).join("")}
+      <div style="display:flex;align-items:center">
+        ${p.image_url ? `< img src="${p.image_url}">` : ""}
+        <b>${p.code}</b>
       </div>
-    `
-    list.appendChild(div)
-  })
+      <div class="price">¥ ${p.price ?? "未设置"}</div>
+    `;
+    list.appendChild(div);
+  });
 }
 
-function toggle(g) {
-  const el = document.getElementById("g-"+g)
-  el.style.display = el.style.display === "none" ? "block" : "none"
-}
-
-function select(code) {
-  codeInput.value = code
-  handleCode()
-}
-
-loadList()
+loadList();
 </script>
 
 </body>
