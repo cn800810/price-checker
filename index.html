@@ -1,112 +1,165 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>价格查询</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: Arial; padding: 30px; }
-    input, button { padding: 8px; font-size: 16px; }
-    dialog { border: none; border-radius: 8px; padding: 20px; width: 320px; }
-    img { max-width: 100%; margin-top: 10px; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>价格查询（共享版）</title>
+
+<!-- Supabase 官方 SDK v2 -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f5f5f5;
+  margin: 0;
+}
+h2 {
+  text-align: center;
+  margin: 20px 0;
+}
+.input-box {
+  width: 90%;
+  max-width: 500px;
+  margin: auto;
+}
+input, button {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  margin-top: 10px;
+  box-sizing: border-box;
+}
+button {
+  background: #2d89ef;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+}
+#list {
+  width: 90%;
+  max-width: 600px;
+  margin: 20px auto;
+}
+.item {
+  background: #fff;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+.price {
+  color: green;
+  font-size: 20px;
+  margin-top: 5px;
+}
+.error {
+  color: red;
+  text-align: center;
+  margin-top: 20px;
+}
+</style>
 </head>
+
 <body>
 
-<h2>价格查询</h2>
+<h2>价格查询（多人共享）</h2>
 
-<input id="codeInput" placeholder="输入商品代码" />
-<button onclick="checkCode()">查询</button>
+<div class="input-box">
+  <input id="codeInput" placeholder="输入商品代码"/>
+  <button onclick="search()">查询 / 保存</button>
+</div>
 
-<dialog id="productDialog">
-  <h3 id="dialogTitle"></h3>
-
-  <label>价格：</label><br />
-  <input id="priceInput" type="number" step="0.01" /><br /><br />
-
-  <label>图片：</label><br />
-  <input id="imageInput" type="file" accept="image/*" /><br />
-
-  < img id="preview" />
-
-  <br /><br />
-  <button onclick="saveProduct()">保存</button>
-  <button onclick="closeDialog()">取消</button>
-</dialog>
+<div id="list"></div>
+<div id="msg" class="error"></div>
 
 <script>
-/* 1️⃣ Supabase 初始化（修复你之前的报错） */
+/* ========= Supabase 初始化 ========= */
 const supabase = window.supabase.createClient(
-  'https://你的-project-id.supabase.co',
-  '你的 anon public key'
-)
+  "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
+  "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
+);
 
-let currentProduct = null
+/* ========= 查询 / 保存 ========= */
+async function search() {
+  const msg = document.getElementById("msg");
+  msg.textContent = "";
 
-/* 2️⃣ 查询商品 */
-async function checkCode() {
-  const code = document.getElementById('codeInput').value.trim()
-  if (!code) return alert('请输入商品代码')
-
-  const { data } = await supabase
-    .from('products')
-    .select('*')
-    .eq('code', code)
-    .single()
-
-  currentProduct = data || { code }
-
-  openDialog(!!data)
-}
-
-/* 3️⃣ 打开弹窗 */
-function openDialog(exists) {
-  const dialog = document.getElementById('productDialog')
-  document.getElementById('dialogTitle').innerText =
-    exists ? '商品已存在（可修改）' : '新商品（请输入价格和图片）'
-
-  document.getElementById('priceInput').value = currentProduct.price || ''
-  document.getElementById('preview').src = currentProduct.image_url || ''
-
-  dialog.showModal()
-}
-
-/* 4️⃣ 保存（新增 / 修改 通用） */
-async function saveProduct() {
-  const price = document.getElementById('priceInput').value
-  const file = document.getElementById('imageInput').files[0]
-
-  let imageUrl = currentProduct.image_url || null
-
-  if (file) {
-    const filePath = `${Date.now()}_${file.name}`
-    await supabase.storage
-      .from('product-images')
-      .upload(filePath, file, { upsert: true })
-
-    const { data } = supabase
-      .storage
-      .from('product-images')
-      .getPublicUrl(filePath)
-
-    imageUrl = data.publicUrl
+  const code = document.getElementById("codeInput").value.trim();
+  if (!code) {
+    alert("请输入商品代码");
+    return;
   }
 
-  await supabase.from('products').upsert({
-    code: currentProduct.code,
-    price,
-    image_url: imageUrl
-  })
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("code", code)
+    .maybeSingle();
 
-  alert('保存成功')
-  closeDialog()
+  if (error) {
+    console.error(error);
+    msg.textContent = "查询失败，请检查 Supabase RLS 策略";
+    return;
+  }
+
+  if (data) {
+    const price = prompt(
+      "当前价格：" + (data.price ?? "未设置") + "\n输入新价格：",
+      data.price ?? ""
+    );
+    if (price !== null && price !== "") {
+      await supabase.from("products")
+        .update({ price })
+        .eq("code", code);
+    }
+  } else {
+    const price = prompt("新商品，输入价格：");
+    if (price !== null && price !== "") {
+      await supabase.from("products")
+        .insert({ code, price });
+    }
+  }
+
+  document.getElementById("codeInput").value = "";
+  loadList();
 }
 
-/* 5️⃣ 关闭弹窗 */
-function closeDialog() {
-  document.getElementById('productDialog').close()
-  document.getElementById('imageInput').value = ''
+/* ========= 加载列表 ========= */
+async function loadList() {
+  const msg = document.getElementById("msg");
+  msg.textContent = "";
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    msg.textContent = "无法读取数据（401），请确认 products 表的 SELECT 策略";
+    return;
+  }
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    list.innerHTML = "<div class='item'>暂无商品</div>";
+    return;
+  }
+
+  data.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `
+      <div><b>${p.code}</b></div>
+      <div class="price">¥ ${p.price ?? "未设置"}</div>
+    `;
+    list.appendChild(d);
+  });
 }
+
+loadList();
 </script>
 
 </body>
