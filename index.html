@@ -105,10 +105,11 @@ button {
 #priceInput {
   margin-top:10px;
 }
-#modal img {
+#modalImg {
   width:80%;
   margin-top:10px;
   border-radius:10px;
+  display:none;
 }
 .close-btn {
   background:#999;
@@ -134,6 +135,7 @@ button {
   <div id="modal">
     <div id="modalCode"></div>
     <div id="modalPrice"></div>
+    < img id="modalImg">
 
     <input id="priceInput" type="number" placeholder="输入价格" style="display:none;">
     <input id="imgInput" type="file" accept="image/*" style="display:none;">
@@ -176,12 +178,24 @@ function openModal(data){
     modalCode.style.color="green";
     modalPrice.innerText = "¥ " + data.price;
     modalPrice.style.display="block";
+
+    if(data.image_url){
+      modalImg.src = data.image_url;
+      modalImg.style.display="block";
+    }else{
+      modalImg.style.display="none";
+    }
+
     priceInput.style.display="none";
     imgInput.style.display="none";
     saveBtn.style.display="none";
   }else{
     modalCode.style.color="#000";
     modalPrice.innerText = "未录入";
+    modalImg.style.display="none";
+
+    priceInput.value="";
+    imgInput.value="";
     priceInput.style.display="block";
     imgInput.style.display="block";
     saveBtn.style.display="block";
@@ -203,10 +217,17 @@ async function saveNew(){
     const file = imgInput.files[0];
     const path = Date.now()+"_"+file.name;
     await supabase.storage.from("product-images").upload(path, file);
-    image_url = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    image_url = supabase.storage
+      .from("product-images")
+      .getPublicUrl(path).data.publicUrl;
   }
 
-  await supabase.from("products").insert({ code: currentCode, price, image_url });
+  await supabase.from("products").insert({
+    code: currentCode,
+    price,
+    image_url
+  });
+
   closeModal();
   loadList();
 }
@@ -219,25 +240,33 @@ function toggleList(){
 }
 
 async function loadList(){
-  const { data } = await supabase.from("products").select("*").order("created_at",{ascending:false});
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at",{ascending:false});
+
   list.innerHTML="";
   data.forEach(p=>{
     const d=document.createElement("div");
     d.className="item";
     d.innerHTML=`
-      <div>
-        <div class="code">${p.code}</div>
-        <div class="price">¥ ${p.price}</div>
+      <div style="display:flex;align-items:center;">
+        ${p.image_url ? `< img src="${p.image_url}" style="width:40px;height:40px;border-radius:6px;margin-right:8px;">` : ""}
+        <div>
+          <div class="code">${p.code}</div>
+          <div class="price">¥ ${p.price}</div>
+        </div>
       </div>
       <div class="actions">
-        <button onclick="edit('${p.code}','${p.price}')">修改</button>
+        <button onclick="edit('${p.code}')">修改</button>
         <button onclick="del('${p.code}')">删除</button>
-      </div>`;
+      </div>
+    `;
     list.appendChild(d);
   });
 }
 
-function edit(code, price){
+function edit(code){
   codeInput.value = code;
   search();
 }
