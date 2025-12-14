@@ -102,6 +102,14 @@ button {
   font-weight:bold;
   color:red;
 }
+#priceInput {
+  margin-top:10px;
+}
+#modal img {
+  width:80%;
+  margin-top:10px;
+  border-radius:10px;
+}
 .close-btn {
   background:#999;
   margin-top:10px;
@@ -114,7 +122,7 @@ button {
 <h2>VillaMassiel</h2>
 
 <div class="input-box">
-  <input id="codeInput" placeholder="输入商品代码"/>
+  <input id="codeInput" placeholder="输入商品代码" />
   <button onclick="search()">查询</button>
   <button id="toggleList" onclick="toggleList()">📂 已保存商品</button>
 </div>
@@ -127,9 +135,10 @@ button {
     <div id="modalCode"></div>
     <div id="modalPrice"></div>
 
-    <input id="priceInput" type="number" placeholder="输入价格" style="display:none;" />
+    <input id="priceInput" type="number" placeholder="输入价格" style="display:none;">
+    <input id="imgInput" type="file" accept="image/*" style="display:none;">
 
-    <button id="saveBtn" onclick="save()" style="display:none;">保存</button>
+    <button id="saveBtn" onclick="saveNew()" style="display:none;">保存</button>
     <button class="close-btn" onclick="closeModal()">关闭</button>
   </div>
 </div>
@@ -141,15 +150,13 @@ const supabase = window.supabase.createClient(
 );
 
 let currentCode = "";
-let editMode = false;
 let listOpen = false;
 
 /* ===== 查询 ===== */
 async function search(){
   const code = codeInput.value.trim();
-  if(!code) return alert("请输入商品代码");
+  if(!code) return;
   currentCode = code;
-  editMode = false;
 
   const { data } = await supabase
     .from("products")
@@ -160,6 +167,23 @@ async function search(){
   openModal(data);
 }
 
+/* ===== 关键新增：键盘直接查询 ===== */
+
+/* ① Enter / 完成 */
+codeInput.addEventListener("keydown", function(e){
+  if(e.key === "Enter"){
+    e.preventDefault();
+    search();
+  }
+});
+
+/* ② 收起键盘 / 失去焦点（安卓 & 部分输入法） */
+codeInput.addEventListener("blur", function(){
+  if(codeInput.value.trim()){
+    search();
+  }
+});
+
 /* ===== 弹窗 ===== */
 function openModal(data){
   overlay.style.display="flex";
@@ -167,42 +191,44 @@ function openModal(data){
 
   if(data){
     modalCode.style.color="green";
-    modalPrice.innerText = "$ " + data.price;
+    modalPrice.innerText = "¥ " + data.price;
     modalPrice.style.display="block";
     priceInput.style.display="none";
+    imgInput.style.display="none";
     saveBtn.style.display="none";
   }else{
     modalCode.style.color="#000";
     modalPrice.innerText = "未录入";
-    modalPrice.style.display="block";
     priceInput.style.display="block";
+    imgInput.style.display="block";
     saveBtn.style.display="block";
-    saveBtn.innerText = "保存";
-    editMode = false;
   }
 }
 
 function closeModal(){
   overlay.style.display="none";
   codeInput.value="";
-  priceInput.value="";
 }
 
-/* ===== 保存 / 修改 ===== */
-async function save(){
+/* ===== 保存 ===== */
+async function saveNew(){
   const price = priceInput.value;
   if(!price) return alert("请输入价格");
 
-  if(editMode){
-    await supabase
-      .from("products")
-      .update({ price })
-      .eq("code", currentCode);
-  }else{
-    await supabase
-      .from("products")
-      .insert({ code: currentCode, price });
+  let image_url = null;
+  if(imgInput.files[0]){
+    const file = imgInput.files[0];
+    const path = Date.now()+"_"+file.name;
+    await supabase.storage.from("product-images").upload(path, file);
+    image_url = supabase.storage.from("product-images")
+      .getPublicUrl(path).data.publicUrl;
   }
+
+  await supabase.from("products").insert({
+    code: currentCode,
+    price,
+    image_url
+  });
 
   closeModal();
   loadList();
@@ -216,7 +242,10 @@ function toggleList(){
 }
 
 async function loadList(){
-  const { data } = await supabase.from("products").select("*").order("created_at",{ascending:false});
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at",{ascending:false});
 
   list.innerHTML="";
   data.forEach(p=>{
@@ -225,47 +254,27 @@ async function loadList(){
     d.innerHTML=`
       <div>
         <div class="code">${p.code}</div>
-        <div class="price">$ ${p.price}</div>
+        <div class="price">¥ ${p.price}</div>
       </div>
       <div class="actions">
-        <button onclick="edit('${p.code}','${p.price}')">修改</button>
+        <button onclick="edit('${p.code}')">修改</button>
         <button onclick="del('${p.code}')">删除</button>
       </div>`;
     list.appendChild(d);
   });
 }
 
-/* ===== 修改 ===== */
-function edit(code, price){
-  currentCode = code;
-  editMode = true;
-
-  overlay.style.display="flex";
-  modalCode.innerText = code;
-  modalCode.style.color="green";
-  modalPrice.style.display="none";
-
-  priceInput.style.display="block";
-  priceInput.value = price;
-
-  saveBtn.style.display="block";
-  saveBtn.innerText = "保存修改";
+function edit(code){
+  codeInput.value = code;
+  search();
 }
 
-/* ===== 删除 ===== */
 async function del(code){
   if(confirm("确认删除 "+code+" ?")){
     await supabase.from("products").delete().eq("code",code);
     loadList();
   }
 }
-
-/* ===== 自动保存功能：按下“换行”（Enter键）时触发保存 ===== */
-priceInput.addEventListener("keydown", function(event){
-  if(event.key === "Enter"){  // 判断按下的是“Enter”键
-    save();  // 直接触发保存
-  }
-});
 </script>
 
 </body>
