@@ -3,60 +3,27 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>价格查询（共享版）</title>
+<title>价格查询（多人共享）</title>
 
-<!-- Supabase 官方 SDK v2 -->
+<!-- Supabase 官方 SDK -->
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <style>
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f5f5f5;
-  margin: 0;
-}
-h2 {
-  text-align: center;
-  margin: 20px 0;
-}
-.input-box {
-  width: 90%;
-  max-width: 500px;
-  margin: auto;
-}
-input, button {
-  width: 100%;
-  padding: 12px;
-  font-size: 18px;
-  margin-top: 10px;
-  box-sizing: border-box;
+body { font-family: Arial, background:#f5f5f5; margin:0; }
+h2 { text-align:center; margin:20px 0; }
+.input-box { width:90%; max-width:400px; margin:auto; }
+input,button {
+  width:100%; padding:12px; font-size:18px; margin-top:10px;
 }
 button {
-  background: #2d89ef;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
+  background:#2d89ef; color:#fff; border:none; border-radius:8px;
 }
-#list {
-  width: 90%;
-  max-width: 600px;
-  margin: 20px auto;
-}
+#list { padding:10px; max-width:400px; margin:auto; }
 .item {
-  background: #fff;
-  padding: 12px;
-  margin-bottom: 10px;
-  border-radius: 8px;
+  background:#fff; padding:10px; margin:10px 0; border-radius:8px;
 }
-.price {
-  color: green;
-  font-size: 20px;
-  margin-top: 5px;
-}
-.error {
-  color: red;
-  text-align: center;
-  margin-top: 20px;
-}
+.price { color:green; font-size:20px; }
+.error { color:red; text-align:center; margin-top:10px; }
 </style>
 </head>
 
@@ -67,25 +34,27 @@ button {
 <div class="input-box">
   <input id="codeInput" placeholder="输入商品代码"/>
   <button onclick="search()">查询 / 保存</button>
+  <div id="error" class="error"></div>
 </div>
 
 <div id="list"></div>
-<div id="msg" class="error"></div>
 
 <script>
 /* ========= Supabase 初始化 ========= */
 const supabase = window.supabase.createClient(
   "https://ikdxkrmpuyvkoifmfzcu.supabase.co",
-  "sb_publishable_wJFKBcmGiyz4WmllVoTUfQ_HevLelwn"
+  "sb_publishable_WJFKBCmGiyz4Wm1lVoTUfQ_HevLelwn" // ← 必须和后台大小写完全一致
 );
 
-/* ========= 查询 / 保存 ========= */
-async function search() {
-  const msg = document.getElementById("msg");
-  msg.textContent = "";
+console.log("Supabase connected");
 
+/* ========= 查询 / 保存 ========= */
+async function search(){
   const code = document.getElementById("codeInput").value.trim();
-  if (!code) {
+  const errorBox = document.getElementById("error");
+  errorBox.textContent = "";
+
+  if(!code){
     alert("请输入商品代码");
     return;
   }
@@ -96,59 +65,51 @@ async function search() {
     .eq("code", code)
     .maybeSingle();
 
-  if (error) {
-    console.error(error);
-    msg.textContent = "查询失败，请检查 Supabase RLS 策略";
+  if(error){
+    errorBox.textContent = "读取失败：" + error.message;
     return;
   }
 
-  if (data) {
+  if(data){
     const price = prompt(
       "当前价格：" + (data.price ?? "未设置") + "\n输入新价格：",
       data.price ?? ""
     );
-    if (price !== null && price !== "") {
-      await supabase.from("products")
+    if(price !== null){
+      await supabase
+        .from("products")
         .update({ price })
         .eq("code", code);
     }
-  } else {
+  }else{
     const price = prompt("新商品，输入价格：");
-    if (price !== null && price !== "") {
-      await supabase.from("products")
+    if(price !== null){
+      await supabase
+        .from("products")
         .insert({ code, price });
     }
   }
 
-  document.getElementById("codeInput").value = "";
   loadList();
 }
 
 /* ========= 加载列表 ========= */
-async function loadList() {
-  const msg = document.getElementById("msg");
-  msg.textContent = "";
-
+async function loadList(){
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error(error);
-    msg.textContent = "无法读取数据（401），请确认 products 表的 SELECT 策略";
-    return;
-  }
+    .order("created_at", { ascending:false });
 
   const list = document.getElementById("list");
   list.innerHTML = "";
 
-  if (!data || data.length === 0) {
-    list.innerHTML = "<div class='item'>暂无商品</div>";
+  if(error){
+    document.getElementById("error").textContent =
+      "无法读取数据（401）：请确认 SELECT 策略已开启";
     return;
   }
 
-  data.forEach(p => {
+  data.forEach(p=>{
     const d = document.createElement("div");
     d.className = "item";
     d.innerHTML = `
